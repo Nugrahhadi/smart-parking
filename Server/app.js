@@ -9,8 +9,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS Configuration - Allow all origins for development
+const corsOptions = {
+  origin: "*", // Allow all origins
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -31,18 +40,32 @@ db.connect((err) => {
   console.log("Connected to MySQL database");
 });
 
+// Initialize database connection
+const { testConnection } = require("./config/database");
+testConnection();
+
 // Routes
 app.get("/", (req, res) => {
   res.json({ message: "Smart Parking System API is running!" });
 });
 
+// API Health Check
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Import routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/users", require("./routes/user")); // ✅ NEW: User profile routes
 app.use("/api/parking", require("./routes/parking"));
 app.use("/api/reservation", require("./routes/reservation"));
 app.use("/api/reservations", require("./routes/reservation")); // ✅ Added plural alias
 app.use("/api/vehicles", require("./routes/vehicles"));
-// app.use('/api/payment', require('./routes/payment'));
+app.use("/api/payments", require("./routes/payment")); // ✅ NEW: Payment routes
 // app.use('/api/admin', require('./routes/admin'));
 
 // Error handling middleware

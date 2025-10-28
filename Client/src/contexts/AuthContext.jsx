@@ -1,4 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  authAPI,
+  setAuthToken,
+  clearAuth as clearAuthToken,
+} from "../services/api";
 
 const AuthContext = createContext();
 
@@ -23,26 +28,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const token = localStorage.getItem("token");
       if (token) {
-        const response = await fetch("http://localhost:5000/api/auth/verify", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData.user);
-        } else {
-          // Token invalid, remove it
-          localStorage.removeItem("token");
-          setUser(null);
-        }
+        const userData = await authAPI.verify();
+        setUser(userData.user);
       }
     } catch (error) {
       console.error("Auth check error:", error);
-      localStorage.removeItem("token");
+      clearAuthToken();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -51,56 +42,68 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      console.log("🔐 AuthContext: Starting login...");
+      console.log("📧 Email:", email);
 
-      const data = await response.json();
+      const data = await authAPI.login({ email, password });
 
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        setUser(data.user);
-        return { success: true, user: data.user };
-      } else {
-        return { success: false, message: data.message };
+      console.log("✅ Login response:", data);
+
+      if (data.token) {
+        setAuthToken(data.token);
+        console.log("✅ Token saved");
       }
+
+      setUser(data.user);
+      return { success: true, user: data.user };
     } catch (error) {
-      console.error("Login error:", error);
-      return { success: false, message: "Network error occurred" };
+      console.error("❌ Login error in AuthContext:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+
+      return {
+        success: false,
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Network error occurred",
+      };
     }
   };
 
   const register = async (name, email, password, phone) => {
     try {
-      const response = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name, email, password, phone }),
-      });
+      console.log("📝 AuthContext: Starting registration...");
+      console.log("📧 Email:", email);
 
-      const data = await response.json();
+      const data = await authAPI.register({ name, email, password, phone });
 
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        setUser(data.user);
-        return { success: true, user: data.user };
-      } else {
-        return { success: false, message: data.message };
+      console.log("✅ Register response:", data);
+
+      if (data.token) {
+        setAuthToken(data.token);
+        console.log("✅ Token saved");
       }
+
+      setUser(data.user);
+      return { success: true, user: data.user };
     } catch (error) {
-      console.error("Register error:", error);
-      return { success: false, message: "Network error occurred" };
+      console.error("❌ Register error in AuthContext:", error);
+      console.error("Error response:", error.response?.data);
+      console.error("Error status:", error.response?.status);
+
+      return {
+        success: false,
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Network error occurred",
+      };
     }
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
+    clearAuthToken();
     setUser(null);
   };
 

@@ -331,7 +331,7 @@ router.post("/", authenticateToken, (req, res) => {
 
       const spot = spotResults[0];
       const pricePerHour = parseFloat(spot.price_per_hour);
-      const assignedSpotId = spot.id; // ✅ Use the found spot's ID
+      const assignedSpotId = spot.id; // ✅ FIXED: Use spot.id (from ps.id in query)
 
       console.log("📍 Assigned spot:");
       console.log("   Spot ID:", assignedSpotId);
@@ -360,14 +360,24 @@ router.post("/", authenticateToken, (req, res) => {
       // ========================================
       console.log("\n🔍 STEP 5: Creating reservation...");
 
+      // ✅ FIXED: Use 'total_amount' and 'location_id' (actual database schema)
       const insertReservationQuery = `
-        INSERT INTO reservations (user_id, location_id, spot_id, vehicle_id, start_time, end_time, total_amount, status)
+        INSERT INTO reservations (
+          user_id, 
+          location_id,
+          spot_id, 
+          vehicle_id, 
+          start_time, 
+          end_time, 
+          total_amount, 
+          status
+        )
         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
       `;
 
       const insertParams = [
         userId,
-        locationId,
+        locationId, // ✅ ADDED: location_id is required in database
         assignedSpotId, // ✅ Use assigned spot ID from query result
         vehicleId,
         startTime,
@@ -384,6 +394,7 @@ router.post("/", authenticateToken, (req, res) => {
         start_time: { value: startTime, type: typeof startTime },
         end_time: { value: endTime, type: typeof endTime },
         total_amount: {
+          // ✅ FIXED: Renamed from total_cost
           value: finalTotalAmount,
           type: typeof finalTotalAmount,
         },
@@ -432,7 +443,7 @@ router.post("/", authenticateToken, (req, res) => {
           v.vehicle_type
         FROM reservations r
         JOIN parking_locations pl ON r.location_id = pl.id
-        JOIN parking_spots ps ON r.spot_id = ps.id
+        LEFT JOIN parking_spots ps ON r.spot_id = ps.id
         JOIN vehicles v ON r.vehicle_id = v.id
         WHERE r.id = ?
       `;
@@ -448,13 +459,19 @@ router.post("/", authenticateToken, (req, res) => {
               });
             }
 
+            if (!reservationResults || reservationResults.length === 0) {
+              return res.status(500).json({
+                message: "Reservation created but details not found",
+              });
+            }
+
             const reservation = reservationResults[0];
             res.status(201).json({
               message: "Reservation created successfully",
               reservation: {
                 id: reservation.id,
                 locationName: reservation.location_name,
-                spotNumber: reservation.spot_number,
+                spotNumber: reservation.spot_number || "N/A",
                 vehiclePlate: reservation.license_plate,
                 vehicleType: reservation.vehicle_type,
                 startTime: reservation.start_time,
@@ -486,9 +503,23 @@ router.get("/my-reservations", authenticateToken, (req, res) => {
 
     console.log("📋 Fetching reservations for user:", userId);
 
+    // ✅ FIXED: Use actual database schema
+    // Database has: id (not reservation_id), total_amount (not total_cost)
     const query = `
       SELECT 
-        r.*,
+        r.id,
+        r.user_id,
+        r.location_id,
+        r.spot_id,
+        r.vehicle_id,
+        r.start_time,
+        r.end_time,
+        r.actual_start_time,
+        r.actual_end_time,
+        r.total_amount,
+        r.status,
+        r.created_at,
+        r.updated_at,
         pl.name as location_name,
         pl.address as location_address,
         ps.spot_number,
@@ -498,9 +529,9 @@ router.get("/my-reservations", authenticateToken, (req, res) => {
         p.payment_status,
         p.payment_method
       FROM reservations r
-      JOIN parking_locations pl ON r.location_id = pl.id
       LEFT JOIN parking_spots ps ON r.spot_id = ps.id
-      JOIN vehicles v ON r.vehicle_id = v.id
+      LEFT JOIN parking_locations pl ON r.location_id = pl.id
+      LEFT JOIN vehicles v ON r.vehicle_id = v.id
       LEFT JOIN payments p ON r.id = p.reservation_id
       WHERE r.user_id = ?
       ORDER BY r.created_at DESC
@@ -509,11 +540,16 @@ router.get("/my-reservations", authenticateToken, (req, res) => {
     db.query(query, [userId], (err, results) => {
       if (err) {
         console.error("❌ Database error in my-reservations:", err);
+        console.error("   SQL Message:", err.sqlMessage);
+        console.error("   SQL State:", err.sqlState);
         return res.status(500).json({
           message: "Database error",
           error: err.message,
+          sqlMessage: err.sqlMessage,
         });
       }
+
+      console.log("📊 Raw query results:", results.length, "rows");
 
       const reservations = results.map((reservation) => {
         // ✅ Handle datetime - could be Date object or string
@@ -540,7 +576,7 @@ router.get("/my-reservations", authenticateToken, (req, res) => {
         };
 
         return {
-          id: reservation.id,
+          id: reservation.id, // ✅ FIXED: Use 'id' not 'reservation_id'
           parking_location: reservation.location_name,
           location_address: reservation.location_address,
           slot_number: reservation.spot_number,
@@ -552,7 +588,7 @@ router.get("/my-reservations", authenticateToken, (req, res) => {
           end_time: formatTime(reservation.end_time),
           actual_start_time: reservation.actual_start_time,
           actual_end_time: reservation.actual_end_time,
-          total_cost: parseFloat(reservation.total_amount),
+          total_cost: parseFloat(reservation.total_amount || 0), // ✅ FIXED: Use 'total_amount' from DB
           status: reservation.status,
           payment_status: reservation.payment_status,
           payment_method: reservation.payment_method,
@@ -577,38 +613,49 @@ router.put("/:id/cancel", authenticateToken, (req, res) => {
   const reservationId = req.params.id;
   const userId = req.user.userId;
 
-  // Check if reservation belongs to user and can be cancelled
+  console.log("🚫 Cancel reservation request:", { reservationId, userId });
+
+  // ✅ FIXED: Use 'id' instead of 'reservation_id', 'spot_id' exists in reservations table
   const checkQuery = `
-    SELECT r.*, ps.id as spot_id
+    SELECT r.id, r.user_id, r.spot_id, r.status
     FROM reservations r
-    LEFT JOIN parking_spots ps ON r.spot_id = ps.id
     WHERE r.id = ? AND r.user_id = ? AND r.status IN ('pending', 'active')
   `;
 
   db.query(checkQuery, [reservationId, userId], (err, results) => {
     if (err) {
-      console.error("Database error:", err);
-      return res.status(500).json({ message: "Database error" });
+      console.error("❌ Database error:", err);
+      console.error("   SQL Message:", err.sqlMessage);
+      return res.status(500).json({
+        message: "Database error",
+        error: err.message,
+        sqlMessage: err.sqlMessage,
+      });
     }
 
     if (results.length === 0) {
+      console.log("❌ Reservation not found or cannot be cancelled");
       return res
         .status(404)
         .json({ message: "Reservation not found or cannot be cancelled" });
     }
 
     const reservation = results[0];
+    console.log("✅ Reservation found:", reservation);
 
-    // Update reservation status
+    // ✅ FIXED: Update using 'id' column
     const updateReservationQuery =
-      'UPDATE reservations SET status = "cancelled" WHERE id = ?';
+      'UPDATE reservations SET status = "cancelled", updated_at = CURRENT_TIMESTAMP WHERE id = ?';
 
     db.query(updateReservationQuery, [reservationId], (err) => {
       if (err) {
-        console.error("Database error:", err);
-        return res
-          .status(500)
-          .json({ message: "Error cancelling reservation" });
+        console.error("❌ Error updating reservation:", err);
+        console.error("   SQL Message:", err.sqlMessage);
+        return res.status(500).json({
+          message: "Error cancelling reservation",
+          error: err.message,
+          sqlMessage: err.sqlMessage,
+        });
       }
 
       // Update spot status back to available if spot exists

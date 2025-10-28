@@ -19,11 +19,25 @@ import {
   Music,
   MapPinned,
 } from "lucide-react";
+import ReservationDetailModal from "./ReservationDetailModal";
 
 const ReservationsTab = () => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Handle show detail
+  const handleShowDetail = (reservation) => {
+    setSelectedReservation(reservation);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedReservation(null);
+  };
 
   // Fetch reservations from API
   useEffect(() => {
@@ -311,9 +325,12 @@ const ReservationsTab = () => {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg flex items-center justify-center">
-                    <Clock size={16} className="mr-2" />
-                    Extend Time
+                  <button
+                    onClick={() => handleShowDetail(reservation)}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg flex items-center justify-center"
+                  >
+                    <ArrowRight size={16} className="mr-2" />
+                    View Detail
                   </button>
                   <button className="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white py-3 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg flex items-center justify-center">
                     <MapPin size={16} className="mr-2" />
@@ -405,9 +422,12 @@ const ReservationsTab = () => {
                     <XCircle size={16} className="mr-2" />
                     Cancel
                   </button>
-                  <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center shadow-md">
-                    <Sparkles size={16} className="mr-2" />
-                    Modify
+                  <button
+                    onClick={() => handleShowDetail(reservation)}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 flex items-center justify-center shadow-md"
+                  >
+                    <ArrowRight size={16} className="mr-2" />
+                    View Detail
                   </button>
                 </div>
               </div>
@@ -495,9 +515,12 @@ const ReservationsTab = () => {
                   </div>
                 </div>
 
-                <button className="w-full border border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-800 py-2 rounded-lg font-medium text-sm flex items-center justify-center transition-all duration-300 hover:bg-gray-50">
+                <button
+                  onClick={() => handleShowDetail(reservation)}
+                  className="w-full border border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-800 py-2 rounded-lg font-medium text-sm flex items-center justify-center transition-all duration-300 hover:bg-gray-50"
+                >
                   <ArrowRight size={16} className="mr-2" />
-                  View Receipt
+                  View Detail
                 </button>
               </div>
             );
@@ -516,6 +539,14 @@ const ReservationsTab = () => {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {showDetailModal && (
+        <ReservationDetailModal
+          reservation={selectedReservation}
+          onClose={handleCloseDetail}
+        />
+      )}
     </div>
   );
 };

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Reservations - Smart Parking</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 10px;
+      }
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+      }
+      .info {
+        background: #e7f3ff;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin-bottom: 20px;
+      }
+      button {
+        background: #2196f3;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 5px;
+      }
+      button:hover {
+        background: #1976d2;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 5px;
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      .success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+      .reservation-card {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 5px;
+        background: #fafafa;
+      }
+      .status {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      .status-pending {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .status-active {
+        background: #cce5ff;
+        color: #004085;
+      }
+      .status-completed {
+        background: #d4edda;
+        color: #155724;
+      }
+      .status-cancelled {
+        background: #f8d7da;
+        color: #721c24;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🚗 Test Reservations API</h1>
+      <p class="subtitle">Check if reservation history is working</p>
+
+      <div class="info">
+        <strong>📝 Instructions:</strong><br />
+        1. Login first to get a token<br />
+        2. Click "Get My Reservations" to fetch your history<br />
+        3. Check if you see all your reservations (active + completed +
+        cancelled)
+      </div>
+
+      <div>
+        <label>Token (from login):</label><br />
+        <input
+          type="text"
+          id="token"
+          placeholder="Paste your token here"
+          style="width: 100%; padding: 8px; margin: 10px 0"
+        />
+        <small>Or login again to auto-fill token</small>
+      </div>
+
+      <div style="margin: 20px 0">
+        <button onclick="login()">🔐 Login First</button>
+        <button onclick="getReservations()">📋 Get My Reservations</button>
+      </div>
+
+      <div id="result"></div>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:5000";
+
+      // Load token from localStorage if exists
+      window.onload = () => {
+        const token = localStorage.getItem("token");
+        if (token) {
+          document.getElementById("token").value = token;
+          console.log("✅ Token loaded from localStorage");
+        }
+      };
+
+      async function login() {
+        const email = prompt("Enter your email:");
+        const password = prompt("Enter your password:");
+
+        if (!email || !password) {
+          alert("Email and password are required!");
+          return;
+        }
+
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = "<p>Logging in...</p>";
+
+        try {
+          const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            document.getElementById("token").value = data.token;
+            localStorage.setItem("token", data.token);
+
+            resultDiv.className = "result success";
+            resultDiv.innerHTML = `✅ Login successful!\nUser: ${data.user.name}\nToken saved!`;
+          } else {
+            resultDiv.className = "result error";
+            resultDiv.innerHTML = `❌ Login failed: ${data.message}`;
+          }
+        } catch (error) {
+          resultDiv.className = "result error";
+          resultDiv.innerHTML = `❌ Network error: ${error.message}`;
+        }
+      }
+
+      async function getReservations() {
+        const token = document.getElementById("token").value;
+
+        if (!token) {
+          alert("Please login first or paste your token!");
+          return;
+        }
+
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = "<p>Fetching reservations...</p>";
+
+        try {
+          console.log(
+            "📤 Fetching reservations with token:",
+            token.substring(0, 20) + "..."
+          );
+
+          const response = await fetch(
+            `${API_URL}/api/reservations/my-reservations`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          const data = await response.json();
+          console.log("📥 Response:", data);
+
+          if (response.ok) {
+            if (data.length === 0) {
+              resultDiv.className = "result";
+              resultDiv.innerHTML =
+                "📭 No reservations found. Try making a reservation first!";
+              return;
+            }
+
+            let html = `<h3>✅ Found ${data.length} Reservation(s)</h3>`;
+
+            // Group by status
+            const active = data.filter((r) =>
+              ["pending", "active"].includes(r.status)
+            );
+            const history = data.filter((r) =>
+              ["completed", "cancelled"].includes(r.status)
+            );
+
+            if (active.length > 0) {
+              html += "<h4>🔵 Active Reservations:</h4>";
+              active.forEach((r) => {
+                html += `
+                                <div class="reservation-card">
+                                    <strong>${r.parking_location}</strong> - ${
+                  r.slot_number || "N/A"
+                }<br>
+                                    <span class="status status-${
+                                      r.status
+                                    }">${r.status.toUpperCase()}</span><br>
+                                    📅 ${r.reservation_date} ${
+                  r.start_time
+                } - ${r.end_time}<br>
+                                    🚗 ${r.license_plate || "N/A"} (${
+                  r.vehicle_type || "N/A"
+                })<br>
+                                    💰 Rp ${r.total_cost?.toLocaleString() || 0}
+                                </div>
+                            `;
+              });
+            }
+
+            if (history.length > 0) {
+              html += "<h4>📜 History (Completed/Cancelled):</h4>";
+              history.forEach((r) => {
+                html += `
+                                <div class="reservation-card">
+                                    <strong>${r.parking_location}</strong> - ${
+                  r.slot_number || "N/A"
+                }<br>
+                                    <span class="status status-${
+                                      r.status
+                                    }">${r.status.toUpperCase()}</span><br>
+                                    📅 ${r.reservation_date} ${
+                  r.start_time
+                } - ${r.end_time}<br>
+                                    🚗 ${r.license_plate || "N/A"} (${
+                  r.vehicle_type || "N/A"
+                })<br>
+                                    💰 Rp ${r.total_cost?.toLocaleString() || 0}
+                                </div>
+                            `;
+              });
+            }
+
+            html += "<br><strong>📊 Summary:</strong><br>";
+            html += `Total: ${data.length} | Active: ${active.length} | History: ${history.length}`;
+            html += "<br><br><pre>" + JSON.stringify(data, null, 2) + "</pre>";
+
+            resultDiv.className = "result success";
+            resultDiv.innerHTML = html;
+          } else {
+            resultDiv.className = "result error";
+            resultDiv.innerHTML = `❌ Error: ${
+              data.message
+            }\n\n${JSON.stringify(data, null, 2)}`;
+          }
+        } catch (error) {
+          resultDiv.className = "result error";
+          resultDiv.innerHTML = `❌ Network error: ${error.message}\n\nMake sure backend is running on port 5000!`;
+        }
+      }
+    </script>
+  </body>
+</html>
