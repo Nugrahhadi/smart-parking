@@ -420,65 +420,137 @@ router.post("/", authenticateToken, (req, res) => {
 
         console.log("✅ Reservation created successfully!");
         console.log("   Reservation ID:", result.insertId);
+        console.log("   Request body payment_method:", req.body.payment_method);
 
-        // Update spot status to reserved
-        console.log("\n📝 Updating spot status to 'reserved'...");
-        const updateSpotQuery =
-          'UPDATE parking_spots SET status = "reserved" WHERE id = ?';
-        db.query(updateSpotQuery, [assignedSpotId], (err) => {
-          if (err) {
-            console.error("⚠️ Error updating spot status:", err);
-          } else {
-            console.log("✅ Spot status updated to 'reserved'");
-          }
-        });
+        const reservationId = result.insertId;
 
-        // Get the created reservation with details
-        const getReservationQuery = `
-        SELECT 
-          r.*,
-          pl.name as location_name,
-          ps.spot_number,
-          v.license_plate,
-          v.vehicle_type
-        FROM reservations r
-        JOIN parking_locations pl ON r.location_id = pl.id
-        LEFT JOIN parking_spots ps ON r.spot_id = ps.id
-        JOIN vehicles v ON r.vehicle_id = v.id
-        WHERE r.id = ?
-      `;
+        // ✅ AUTO-CREATE PAYMENT RECORD (since payment was validated in frontend)
+        console.log("\n💳 Step: Auto-creating payment record...");
+        console.log("   Payment Method from request:", req.body.payment_method);
+        console.log("   Payment Token from request:", req.body.paymentToken);
 
+        const paymentToken = req.body.paymentToken || `PAY-${Date.now()}-AUTO`;
+        const paymentMethod =
+          req.body.payment_method || req.body.paymentMethod || "ewallet";
+        const transactionId = `TRX-${Date.now()}-${reservationId}`;
+
+        console.log("   Using Payment Method:", paymentMethod);
+        console.log("   Using Payment Token:", paymentToken);
+        console.log("   Generated Transaction ID:", transactionId);
+
+        const insertPaymentQuery = `
+          INSERT INTO payments (
+            reservation_id, 
+            amount, 
+            payment_method, 
+            payment_status, 
+            transaction_id, 
+            payment_date
+          ) VALUES (?, ?, ?, 'completed', ?, NOW())
+        `;
+
+        // Insert payment
         db.query(
-          getReservationQuery,
-          [result.insertId],
-          (err, reservationResults) => {
-            if (err) {
-              console.error("Database error:", err);
-              return res.status(500).json({
-                message: "Reservation created but failed to fetch details",
-              });
+          insertPaymentQuery,
+          [reservationId, finalTotalAmount, paymentMethod, transactionId],
+          (paymentErr, paymentResult) => {
+            if (paymentErr) {
+              console.error(
+                "❌ CRITICAL: Error creating payment record:",
+                paymentErr
+              );
+              console.error("   SQL Message:", paymentErr.sqlMessage);
+              // Continue anyway - don't fail the entire request
+            } else {
+              console.log(
+                "✅ Payment record created! ID:",
+                paymentResult.insertId
+              );
+              console.log("   Transaction ID:", transactionId);
             }
 
-            if (!reservationResults || reservationResults.length === 0) {
-              return res.status(500).json({
-                message: "Reservation created but details not found",
-              });
-            }
+            // Update reservation status to 'active' after payment attempt
+            console.log("\n📝 Updating reservation status to 'active'...");
+            const updateStatusQuery =
+              'UPDATE reservations SET status = "active" WHERE id = ?';
+            db.query(updateStatusQuery, [reservationId], (statusErr) => {
+              if (statusErr) {
+                console.error(
+                  "⚠️ Error updating reservation status:",
+                  statusErr
+                );
+              } else {
+                console.log("✅ Reservation status updated to 'active'");
+              }
 
-            const reservation = reservationResults[0];
-            res.status(201).json({
-              message: "Reservation created successfully",
-              reservation: {
-                id: reservation.id,
-                locationName: reservation.location_name,
-                spotNumber: reservation.spot_number || "N/A",
-                vehiclePlate: reservation.license_plate,
-                vehicleType: reservation.vehicle_type,
-                startTime: reservation.start_time,
-                endTime: reservation.end_time,
-                totalAmount: parseFloat(reservation.total_amount),
-                status: reservation.status,
-              },
+              // Update spot status to reserved
+              console.log("\n📝 Updating spot status to 'reserved'...");
+              const updateSpotQuery =
+                'UPDATE parking_spots SET status = "reserved" WHERE id = ?';
+              db.query(updateSpotQuery, [assignedSpotId], (spotErr) => {
+                if (spotErr) {
+                  console.error("⚠️ Error updating spot status:", spotErr);
+                } else {
+                  console.log("✅ Spot status updated to 'reserved'");
+                }
+
+                // Finally, fetch and return the reservation
+                console.log("\n📋 Fetching created reservation...");
+                const getReservationQuery = `
+                  SELECT 
+                    r.*,
+                    pl.name as location_name,
+                    ps.spot_number,
+                    v.license_plate,
+                    v.vehicle_type
+                  FROM reservations r
+                  JOIN parking_locations pl ON r.location_id = pl.id
+                  LEFT JOIN parking_spots ps ON r.spot_id = ps.id
+                  JOIN vehicles v ON r.vehicle_id = v.id
+                  WHERE r.id = ?
+                `;
+
+                db.query(
+                  getReservationQuery,
+                  [reservationId],
+                  (fetchErr, reservationResults) => {
+                    if (fetchErr) {
+                      console.error("Database error:", fetchErr);
+                      return res.status(500).json({
+                        message:
+                          "Reservation created but failed to fetch details",
+                      });
+                    }
+
+                    if (
+                      !reservationResults ||
+                      reservationResults.length === 0
+                    ) {
+                      return res.status(500).json({
+                        message: "Reservation created but details not found",
+                      });
+                    }
+
+                    const reservation = reservationResults[0];
+                    console.log("✅ Reservation fetched successfully!");
+
+                    res.status(201).json({
+                      message: "Reservation created successfully",
+                      reservation: {
+                        id: reservation.id,
+                        locationName: reservation.location_name,
+                        spotNumber: reservation.spot_number || "N/A",
+                        vehiclePlate: reservation.license_plate,
+                        vehicleType: reservation.vehicle_type,
+                        startTime: reservation.start_time,
+                        endTime: reservation.end_time,
+                        totalAmount: parseFloat(reservation.total_amount),
+                        status: reservation.status,
+                      },
+                    });
+                  }
+                );
+              });
             });
           }
         );

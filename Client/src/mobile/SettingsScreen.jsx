@@ -78,7 +78,11 @@ const SettingsScreen = () => {
 
   const appSettings = [
     {
-      icon: darkMode ? <Moon size={20} className="text-blue-600" /> : <Sun size={20} className="text-blue-600" />,
+      icon: darkMode ? (
+        <Moon size={20} className="text-blue-600" />
+      ) : (
+        <Sun size={20} className="text-blue-600" />
+      ),
       title: "Dark Mode",
       description: "Toggle dark theme",
       toggle: true,
@@ -112,7 +116,7 @@ const SettingsScreen = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
-      <div className="bg-blue-600 text-white p-4 flex items-center">
+      <div className="bg-blue-600 text-white p-3 flex items-center">
         <button
           className="w-10 h-10 rounded-full flex items-center justify-center"
           onClick={goBack}

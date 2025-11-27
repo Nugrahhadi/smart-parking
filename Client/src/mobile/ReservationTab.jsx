@@ -40,41 +40,78 @@ const ReservationsTab = () => {
   };
 
   // Fetch reservations from API
-  useEffect(() => {
-    const fetchReservations = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
+  const fetchReservations = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
 
-        if (token) {
-          // Fetch from API with correct endpoint
-          const response = await fetch(
-            "http://localhost:5000/api/reservations/my-reservations",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
+      if (token) {
+        console.log("🔍 Fetching reservations from API...");
 
-          if (response.ok) {
-            const data = await response.json();
-            setReservations(data);
-          } else {
-            console.error("Failed to fetch reservations");
-            setError("Failed to load reservations");
+        // Fetch from API with correct endpoint
+        const response = await fetch(
+          "http://localhost:5000/api/reservations/my-reservations",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
           }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("✅ Received reservations:", data.length, "items");
+          console.log("📊 Sample data:", data[0]); // Log first item for debugging
+          setReservations(data);
+        } else {
+          console.error(
+            "❌ Failed to fetch reservations. Status:",
+            response.status
+          );
+          const errorText = await response.text();
+          console.error("Error response:", errorText);
+          setError("Failed to load reservations");
         }
-      } catch (error) {
-        console.error("Error fetching reservations:", error);
-        setError("Error loading reservations");
-      } finally {
-        setLoading(false);
+      } else {
+        console.warn("⚠️ No token found in localStorage");
+      }
+    } catch (error) {
+      console.error("❌ Error fetching reservations:", error);
+      setError("Error loading reservations");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-fetch on mount and when new reservation is created
+  useEffect(() => {
+    fetchReservations();
+
+    // ✅ Listen for new reservation events from localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === "newReservation") {
+        console.log("🔔 New reservation detected! Auto-refreshing...");
+        fetchReservations();
+        localStorage.removeItem("newReservation"); // Clear the trigger
       }
     };
 
-    fetchReservations();
+    // ✅ Auto-refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("👁️ Tab visible again, refreshing reservations...");
+        fetchReservations();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   // Helper function to categorize reservations
@@ -92,14 +129,16 @@ const ReservationsTab = () => {
         reservation.reservation_date + " " + reservation.end_time
       );
 
-      if (
-        reservation.status === "active" ||
-        (now >= startTime && now <= endTime)
-      ) {
+      // ✅ FIXED: Show reservations with ANY status (pending, active, completed)
+      // Group by time, not by status
+      if (now >= startTime && now <= endTime) {
+        // Currently active (happening now)
         active.push(reservation);
       } else if (now < startTime) {
+        // Future reservation (upcoming)
         upcoming.push(reservation);
       } else {
+        // Past reservation
         past.push(reservation);
       }
     });
@@ -205,7 +244,7 @@ const ReservationsTab = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-blue-50 p-6 overflow-y-auto">
+    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-blue-50 p-4 overflow-y-auto">
       {/* Header with gradient */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">

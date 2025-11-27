@@ -352,7 +352,7 @@ const MyVehiclesScreen = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-blue-600 text-white p-4 flex items-center">
+      <div className="bg-blue-600 text-white p-3 flex items-center">
         <button onClick={() => navigate(-1)} className="mr-4">
           <ArrowLeft size={24} />
         </button>

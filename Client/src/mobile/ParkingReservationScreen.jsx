@@ -29,7 +29,7 @@ const ParkingReservationScreen = () => {
   const [locationData, setLocationData] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
 
-  // Mall zones dengan tema kreatif dan inovatif sesuai permintaan
+  // ✅ ONLY 3 ZONES - Match database zone_type exactly
   const mallZones = useMemo(
     () => ({
       vip: {
@@ -56,46 +56,6 @@ const ParkingReservationScreen = () => {
         textColor: "text-purple-800",
         price: 15000,
         features: ["Near Cinema", "Game Center", "Music Store", "Food Court"],
-      },
-      shopping: {
-        name: "Shopping Paradise",
-        icon: ShoppingBag,
-        color: "from-pink-400 to-pink-600",
-        bgColor: "bg-pink-50",
-        borderColor: "border-pink-300",
-        textColor: "text-pink-800",
-        price: 12000,
-        features: [
-          "Mall Access",
-          "Department Store",
-          "Fashion Outlets",
-          "Beauty Center",
-        ],
-      },
-      dining: {
-        name: "Culinary Heaven",
-        icon: Coffee,
-        color: "from-orange-400 to-orange-600",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-300",
-        textColor: "text-orange-800",
-        price: 10000,
-        features: ["Restaurant Area", "Food Court", "Cafe", "Bar & Lounge"],
-      },
-      electric: {
-        name: "Electric Vehicle Station",
-        icon: Zap,
-        color: "from-green-400 to-green-600",
-        bgColor: "bg-green-50",
-        borderColor: "border-green-300",
-        textColor: "text-green-800",
-        price: 20000,
-        features: [
-          "Fast Charging",
-          "Tesla Compatible",
-          "Eco Friendly",
-          "Premium Service",
-        ],
       },
       regular: {
         name: "Regular Parking",
@@ -422,45 +382,54 @@ const ParkingReservationScreen = () => {
     const Icon = zone.icon;
 
     return (
-      <div className="bg-white rounded-xl p-6 shadow-lg">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center sticky top-0 bg-white pb-2">
           <Shield className="mr-2 text-green-600" size={20} />
           Ringkasan Reservasi
         </h3>
 
         <div className="space-y-4 mb-6">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center">
-              <Icon className="text-blue-600 mr-3" size={24} />
-              <div>
-                <p className="font-semibold text-gray-800">{zone.name}</p>
-                <p className="text-sm text-gray-600">
+          <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <div className="flex items-center min-w-0">
+              <Icon
+                className="text-blue-600 mr-2 sm:mr-3 flex-shrink-0"
+                size={20}
+              />
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-800 text-sm sm:text-base truncate">
+                  {zone.name}
+                </p>
+                <p className="text-xs sm:text-sm text-gray-600">
                   Slot {selectedSlot.number || selectedSlot.displayId}
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="font-semibold text-gray-800">
+            <div className="text-right ml-2 flex-shrink-0">
+              <p className="font-semibold text-gray-800 text-sm sm:text-base">
                 Rp {zone.price.toLocaleString()}
               </p>
-              <p className="text-sm text-gray-600">per jam</p>
+              <p className="text-xs text-gray-600">per jam</p>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="font-medium text-gray-700">Durasi Parkir:</span>
-            <div className="flex items-center space-x-3">
+            <span className="font-medium text-gray-700 text-sm sm:text-base">
+              Durasi:
+            </span>
+            <div className="flex items-center space-x-2 sm:space-x-3">
               <button
                 onClick={() => duration > 1 && setDuration(duration - 1)}
                 disabled={duration <= 1}
-                className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold"
               >
                 -
               </button>
-              <span className="font-bold text-lg px-3">{duration} jam</span>
+              <span className="font-bold text-base sm:text-lg px-2 sm:px-3 min-w-[60px] text-center">
+                {duration} jam
+              </span>
               <button
                 onClick={() => setDuration(duration + 1)}
-                className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors text-sm font-bold"
               >
                 +
               </button>
@@ -469,11 +438,16 @@ const ParkingReservationScreen = () => {
 
           {/* Vehicle Selection */}
           <div className="space-y-2">
-            <span className="font-medium text-gray-700">Pilih Kendaraan:</span>
+            <span className="font-medium text-gray-700 text-sm sm:text-base">
+              Pilih Kendaraan:
+            </span>
             {loadingVehicles ? (
-              <div className="text-gray-500 text-sm">Loading vehicles...</div>
+              <div className="text-gray-500 text-xs sm:text-sm flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                Loading vehicles...
+              </div>
             ) : vehicles.length === 0 ? (
-              <div className="text-red-500 text-sm">
+              <div className="text-red-500 text-xs sm:text-sm p-3 bg-red-50 rounded-lg">
                 Anda belum memiliki kendaraan. Tambahkan kendaraan terlebih
                 dahulu.
               </div>
@@ -487,7 +461,7 @@ const ParkingReservationScreen = () => {
                   setSelectedVehicle(vehicle);
                   console.log("🚗 Vehicle selected:", vehicle);
                 }}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base transition-all"
               >
                 {vehicles.map((vehicle) => (
                   <option key={vehicle.id} value={vehicle.id}>
@@ -499,18 +473,19 @@ const ParkingReservationScreen = () => {
             )}
           </div>
 
-          <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
-            <span>Total:</span>
+          <div className="flex justify-between items-center text-base sm:text-lg font-bold border-t-2 pt-3 border-gray-200">
+            <span className="text-gray-700">Total:</span>
             <span className="text-green-600">
               Rp {totalPrice.toLocaleString()}
             </span>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2 sticky bottom-0 bg-white pt-4">
           <button
             onClick={() => setReservationStep(2)}
-            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 flex items-center justify-center shadow-lg"
+            disabled={!selectedVehicle}
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CreditCard className="mr-2" size={20} />
             Lanjut ke Pembayaran
@@ -518,7 +493,7 @@ const ParkingReservationScreen = () => {
 
           <button
             onClick={() => setSelectedSlot(null)}
-            className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:border-gray-400 transition-all duration-300"
+            className="w-full border-2 border-gray-300 text-gray-700 py-2.5 px-4 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
           >
             Pilih Slot Lain
           </button>
@@ -530,14 +505,21 @@ const ParkingReservationScreen = () => {
   const PaymentStep = () => {
     const zone = mallZones[selectedSlot.zone];
     const totalPrice = zone.price * duration;
+    const [paymentMethod, setPaymentMethod] = useState("ewallet");
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const handlePayment = async () => {
       try {
+        setIsProcessing(true);
         const token = localStorage.getItem("token");
 
-        // ========================================
-        // 🔧 FORMAT DATETIME FOR MYSQL
-        // ========================================
+        if (!token) {
+          alert("Silakan login terlebih dahulu");
+          navigate("/login");
+          return;
+        }
+
+        // Format datetime for MySQL
         const formatDateTimeForMySQL = (date) => {
           const d = new Date(date);
           const year = d.getFullYear();
@@ -551,236 +533,118 @@ const ParkingReservationScreen = () => {
 
         const startTime = new Date();
         const endTime = new Date(Date.now() + duration * 60 * 60 * 1000);
-        const zone = mallZones[selectedSlot.zone];
-        const totalPrice = zone.price * duration;
 
-        // ✅ NEW: Prepare reservation data with zone_type instead of specific spotId
+        // ✅ NEW FLOW: STEP 1 - VALIDATE PAYMENT FIRST (simulasi payment gateway)
+        console.log("💳 Step 1: Validating payment...");
+
+        // Simulate payment validation (normally this would call a payment gateway)
+        const paymentValidation = {
+          amount: totalPrice,
+          payment_method: paymentMethod,
+          timestamp: new Date().toISOString(),
+        };
+
+        console.log("📤 Payment validation:", paymentValidation);
+
+        // Simulate payment gateway response (0.5 second delay)
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        const mockPaymentToken = `PAY-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)
+          .toUpperCase()}`;
+        console.log("✅ Payment validated! Token:", mockPaymentToken);
+
+        // ✅ STEP 2: CREATE RESERVATION (after payment validation)
+        console.log(
+          "📝 Step 2: Creating reservation with validated payment..."
+        );
+
         const reservationData = {
           locationId: locationData.id,
-          zone_type: zone.name, // ✅ Send zone name (e.g., "VIP Royal Zone") to backend
-          vehicleId: selectedVehicle?.id || vehicles[0]?.id || null,
+          zone_type: zone.name,
+          vehicleId: selectedVehicle?.id || vehicles[0]?.id,
           startTime: formatDateTimeForMySQL(startTime),
           endTime: formatDateTimeForMySQL(endTime),
-          totalPrice: totalPrice || 0,
+          totalPrice: totalPrice,
           duration: duration,
-          zone: selectedSlot.zone, // Keep for reference
+          zone: selectedSlot.zone,
+          paymentToken: mockPaymentToken, // Payment token from validation
+          payment_method: paymentMethod, // ✅ ADDED: Payment method for auto-payment creation
         };
 
-        // ========================================
-        // 🔍 STEP 1: VALIDATE DATA BEFORE SENDING
-        // ========================================
-        console.group("📤 CLIENT: Sending Reservation Request");
-        console.log(
-          "🎯 Endpoint:",
-          "POST http://localhost:5000/api/reservations"
+        console.log("📤 Creating reservation...", reservationData);
+
+        const reservationResponse = await fetch(
+          "http://localhost:5000/api/reservations",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(reservationData),
+          }
         );
 
-        // Validate required fields
-        console.log("\n1️⃣ Validating required fields...");
-        console.log("🔍 Raw values before validation:");
-        console.log(
-          "   locationId:",
-          reservationData.locationId,
-          "Type:",
-          typeof reservationData.locationId
-        );
-        console.log(
-          "   zone_type:",
-          reservationData.zone_type,
-          "Type:",
-          typeof reservationData.zone_type
-        );
-        console.log(
-          "   vehicleId:",
-          reservationData.vehicleId,
-          "Type:",
-          typeof reservationData.vehicleId
-        );
-        console.log(
-          "   startTime:",
-          reservationData.startTime,
-          "Type:",
-          typeof reservationData.startTime
-        );
-        console.log(
-          "   endTime:",
-          reservationData.endTime,
-          "Type:",
-          typeof reservationData.endTime
-        );
+        const reservationResult = await reservationResponse.json();
+        console.log("📥 Reservation response:", reservationResult);
 
-        const validation = {
-          locationId:
-            !!reservationData.locationId &&
-            typeof reservationData.locationId === "number",
-          zone_type:
-            !!reservationData.zone_type &&
-            typeof reservationData.zone_type === "string", // ✅ Validate zone_type instead of spotId
-          vehicleId:
-            reservationData.vehicleId !== null &&
-            reservationData.vehicleId !== undefined,
-          startTime:
-            !!reservationData.startTime &&
-            typeof reservationData.startTime === "string",
-          endTime:
-            !!reservationData.endTime &&
-            typeof reservationData.endTime === "string",
-        };
-
-        console.log("\n📊 Validation results:");
-        console.table(validation);
-
-        const missingFields = Object.entries(validation)
-          .filter(([, valid]) => !valid)
-          .map(([key]) => key);
-
-        if (missingFields.length > 0) {
-          console.error("❌ VALIDATION FAILED!");
-          console.error("Missing or invalid fields:", missingFields);
-          alert(`Error: Missing required fields - ${missingFields.join(", ")}`);
-          console.groupEnd();
-          return;
+        if (!reservationResponse.ok) {
+          const errorMsg = reservationResult.message || "Reservation failed";
+          const details = reservationResult.missingFields
+            ? `\nMissing: ${reservationResult.missingFields.join(", ")}`
+            : reservationResult.hint || "";
+          throw new Error(errorMsg + details);
         }
 
-        console.log("✅ All validations passed!");
+        const reservationId = reservationResult.reservation?.id;
+        console.log("✅ Reservation created! ID:", reservationId);
 
-        console.log("\n2️⃣ Reservation Data:");
-        console.log(
-          "📦 Payload (JSON):",
-          JSON.stringify(reservationData, null, 2)
-        );
-        console.log("🔑 Token present:", !!token);
-        console.log("\n📋 Detailed Field Info:");
-        console.table({
-          locationId: {
-            value: reservationData.locationId,
-            type: typeof reservationData.locationId,
-            valid: validation.locationId ? "✅" : "❌",
-          },
-          zone_type: {
-            value: reservationData.zone_type,
-            type: typeof reservationData.zone_type,
-            valid: validation.zone_type ? "✅" : "❌",
-          },
-          vehicleId: {
-            value: reservationData.vehicleId,
-            type: typeof reservationData.vehicleId,
-            valid: validation.vehicleId ? "✅" : "❌",
-          },
-          startTime: {
-            value: reservationData.startTime,
-            type: typeof reservationData.startTime,
-            valid: validation.startTime ? "✅" : "❌",
-          },
-          endTime: {
-            value: reservationData.endTime,
-            type: typeof reservationData.endTime,
-            valid: validation.endTime ? "✅" : "❌",
-          },
-          totalPrice: {
-            value: reservationData.totalPrice,
-            type: typeof reservationData.totalPrice,
-            valid: "✅",
-          },
-          duration: {
-            value: reservationData.duration,
-            type: typeof reservationData.duration,
-            valid: "✅",
-          },
-        });
+        console.log("🎉 Success! Payment validated → Reservation created");
+        console.log("📋 Summary:");
+        console.log("  - Payment Token:", mockPaymentToken);
+        console.log("  - Reservation ID:", reservationId);
+        console.log("  - Amount:", totalPrice);
+        console.log("  - Payment Method:", paymentMethod);
 
-        console.log("\n3️⃣ Sending to backend...");
-        console.groupEnd();
+        // ✅ Trigger refresh in ReservationTab via localStorage
+        localStorage.setItem("newReservation", Date.now().toString());
+        console.log("📢 Notified ReservationTab about new reservation");
 
-        if (token) {
-          // If user is logged in, try to create reservation via API
-          const response = await fetch(
-            "http://localhost:5000/api/reservations",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(reservationData),
-            }
-          );
-
-          // ========================================
-          // 🔍 STEP 2: LOG SERVER RESPONSE
-          // ========================================
-          console.group("📥 SERVER: Reservation Response");
-          console.log("📊 Status Code:", response.status);
-          console.log("📊 Status Text:", response.statusText);
-          console.log("✅ Response OK:", response.ok);
-
-          const responseText = await response.text();
-          console.log("📄 Raw Response:", responseText);
-
-          let responseData;
-          try {
-            responseData = JSON.parse(responseText);
-            console.log("📦 Parsed Response:", responseData);
-          } catch (parseError) {
-            console.error(
-              "❌ Failed to parse response as JSON:",
-              parseError.message
-            );
-          }
-          console.groupEnd();
-
-          if (response.ok) {
-            console.log("✅ Reservation created successfully!");
-            setReservationStep(3);
-          } else {
-            console.group("❌ SERVER ERROR DETAILS");
-            console.error("Status:", response.status);
-            console.error("Message:", responseData?.message || "No message");
-            console.error("Error:", responseData?.error || "No error details");
-            console.error(
-              "Missing Fields:",
-              responseData?.missingFields || "N/A"
-            );
-            console.groupEnd();
-
-            // For demo purposes, still proceed
-            setReservationStep(3);
-          }
-        } else {
-          // If no token (demo mode), simulate successful payment
-          console.log(
-            "Demo mode: Simulating successful payment",
-            reservationData
-          );
-          setReservationStep(3);
-        }
-      } catch (error) {
-        console.error("Error processing payment:", error);
-        // For demo purposes, still proceed
         setReservationStep(3);
+        setIsProcessing(false);
+      } catch (error) {
+        console.error("❌ Error:", error);
+        const errorMsg =
+          error.message || "Terjadi kesalahan. Silakan coba lagi.";
+        alert(
+          `An unexpected error occurred while creating reservation\n\n${errorMsg}`
+        );
+        setIsProcessing(false);
       }
     };
 
     return (
-      <div className="bg-white rounded-xl p-6 shadow-lg">
-        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center sticky top-0 bg-white pb-2">
           <CreditCard className="mr-2 text-blue-600" size={20} />
           Pembayaran
         </h3>
 
         <div className="space-y-4 mb-6">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex justify-between items-center">
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <div className="flex justify-between items-center mb-2">
               <span className="font-medium text-gray-700">
                 Slot {selectedSlot.number || selectedSlot.displayId}
               </span>
-              <span className="font-semibold">
+              <span className="font-semibold text-blue-600">
                 Rp {zone.price.toLocaleString()}/jam
               </span>
             </div>
-            <div className="flex justify-between items-center mt-2">
+            <div className="flex justify-between items-center">
               <span className="font-medium text-gray-700">
-                Duration: {duration} jam
+                Durasi: {duration} jam
               </span>
               <span className="font-bold text-xl text-green-600">
                 Rp {totalPrice.toLocaleString()}
@@ -788,37 +652,99 @@ const ParkingReservationScreen = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="p-3 border rounded-lg">
-              <label className="flex items-center">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">
+              Metode Pembayaran:
+            </label>
+            <div className="space-y-2">
+              <label
+                className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                  paymentMethod === "ewallet"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
                 <input
                   type="radio"
                   name="payment"
-                  className="mr-3"
-                  defaultChecked
+                  value="ewallet"
+                  checked={paymentMethod === "ewallet"}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="mr-3 w-4 h-4 text-blue-600"
                 />
-                <span className="font-medium">E-Wallet (GoPay, OVO, DANA)</span>
+                <span className="font-medium flex-1">
+                  E-Wallet (GoPay, OVO, DANA)
+                </span>
+                {paymentMethod === "ewallet" && (
+                  <span className="text-blue-600 text-sm">✓</span>
+                )}
               </label>
-            </div>
-            <div className="p-3 border rounded-lg">
-              <label className="flex items-center">
-                <input type="radio" name="payment" className="mr-3" />
-                <span className="font-medium">Transfer Bank</span>
+              <label
+                className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                  paymentMethod === "bank_transfer"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="bank_transfer"
+                  checked={paymentMethod === "bank_transfer"}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="mr-3 w-4 h-4 text-blue-600"
+                />
+                <span className="font-medium flex-1">Transfer Bank</span>
+                {paymentMethod === "bank_transfer" && (
+                  <span className="text-blue-600 text-sm">✓</span>
+                )}
+              </label>
+              <label
+                className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                  paymentMethod === "credit_card"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="payment"
+                  value="credit_card"
+                  checked={paymentMethod === "credit_card"}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="mr-3 w-4 h-4 text-blue-600"
+                />
+                <span className="font-medium flex-1">Kartu Kredit/Debit</span>
+                {paymentMethod === "credit_card" && (
+                  <span className="text-blue-600 text-sm">✓</span>
+                )}
               </label>
             </div>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2 sticky bottom-0 bg-white pt-4">
           <button
             onClick={handlePayment}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300"
+            disabled={isProcessing}
+            className={`w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center`}
           >
-            Bayar Sekarang
+            {isProcessing ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Memproses...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2" size={20} />
+                Bayar Sekarang - Rp {totalPrice.toLocaleString()}
+              </>
+            )}
           </button>
           <button
             onClick={() => setReservationStep(1)}
-            className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:border-gray-400 transition-all duration-300"
+            disabled={isProcessing}
+            className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50"
           >
             Kembali
           </button>
@@ -832,64 +758,76 @@ const ParkingReservationScreen = () => {
     const totalPrice = zone.price * duration;
 
     return (
-      <div className="bg-white rounded-xl p-6 shadow-lg">
-        <div className="text-center mb-6">
-          <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-3xl">✓</span>
+      <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto">
+        <div className="text-center mb-4 sm:mb-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg">
+            <span className="text-white text-2xl sm:text-3xl font-bold">✓</span>
           </div>
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">
             Reservasi Berhasil!
           </h3>
-          <p className="text-gray-600 mb-4">
+          <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4 px-2">
             Slot {selectedSlot.number || selectedSlot.displayId} telah
             direservasi untuk {duration} jam
           </p>
         </div>
 
         {/* Reservation Summary */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-6">
-          <h4 className="font-semibold text-gray-800 mb-3">Detail Reservasi</h4>
-          <div className="space-y-2 text-sm">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 border border-green-200">
+          <h4 className="font-semibold text-gray-800 mb-2 sm:mb-3 text-sm sm:text-base">
+            Detail Reservasi
+          </h4>
+          <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Lokasi:</span>
-              <span className="font-medium">{locationData?.name}</span>
+              <span className="font-medium text-right ml-2 truncate max-w-[60%]">
+                {locationData?.name}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Slot:</span>
-              <span className="font-medium">
+              <span className="font-medium text-right ml-2 truncate max-w-[60%]">
                 {selectedSlot.number || selectedSlot.displayId} - {zone.name}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Kendaraan:</span>
+              <span className="font-medium text-right ml-2 truncate max-w-[60%]">
+                {selectedVehicle?.license_plate || "N/A"}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Durasi:</span>
               <span className="font-medium">{duration} jam</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Total Bayar:</span>
-              <span className="font-bold text-green-600">
+            <div className="flex justify-between pt-2 border-t border-green-300">
+              <span className="text-gray-700 font-medium">Total Bayar:</span>
+              <span className="font-bold text-green-600 text-base sm:text-lg">
                 Rp {totalPrice.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Status:</span>
-              <span className="font-medium text-blue-600">Aktif</span>
+              <span className="font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                Aktif
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           <button
-            onClick={() => navigate("/reservation-history")}
-            className="w-full bg-blue-500 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-600 transition-colors flex items-center justify-center"
+            onClick={() => navigate("/mobile")}
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 sm:py-3 px-4 rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 flex items-center justify-center shadow-md"
           >
-            <Clock className="mr-2" size={20} />
-            Lihat History Reservasi
+            <Clock className="mr-2" size={18} />
+            Lihat Reservasi Saya
           </button>
           <button
             onClick={() => navigate("/parking")}
-            className="w-full border-2 border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold hover:border-gray-400 transition-colors"
+            className="w-full border-2 border-gray-300 text-gray-700 py-2.5 sm:py-3 px-4 rounded-xl font-semibold hover:border-gray-400 hover:bg-gray-50 transition-all duration-300"
           >
-            Kembali ke Daftar Parkir
+            Parkir Lagi
           </button>
         </div>
       </div>
@@ -908,50 +846,57 @@ const ParkingReservationScreen = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex flex-col">
+      {/* Header - Fixed */}
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center flex-1 min-w-0">
               <button
                 onClick={() => navigate(-1)}
-                className="mr-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="mr-2 sm:mr-4 p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
               >
-                <ArrowLeft size={24} className="text-gray-600" />
+                <ArrowLeft size={20} className="text-gray-600 sm:w-6 sm:h-6" />
               </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold text-gray-800 truncate">
                   {locationData?.name || "Parking Reservation"}
                 </h1>
-                <div className="flex items-center text-sm text-gray-600 mt-1">
-                  <MapPin size={16} className="mr-1" />
-                  <span>{locationData?.address}</span>
+                <div className="flex items-center text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
+                  <MapPin
+                    size={14}
+                    className="mr-1 flex-shrink-0 sm:w-4 sm:h-4"
+                  />
+                  <span className="truncate">{locationData?.address}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Star className="text-yellow-500" size={16} />
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ml-2 flex-shrink-0">
+              <Star className="text-yellow-500 w-4 h-4 sm:w-5 sm:h-5" />
               <span className="font-medium">{locationData?.rating}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Zone Selection and Parking Layout */}
-          <div className="lg:col-span-2 space-y-6">
-            <ZoneLegend />
-            <SelectableParkingLayout />
-          </div>
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            {/* Left Column - Zone Selection and Parking Layout */}
+            <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+              <ZoneLegend />
+              <SelectableParkingLayout />
+            </div>
 
-          {/* Right Column - Reservation Summary/Payment */}
-          <div className="lg:col-span-1">
-            {reservationStep === 1 && <ReservationSummary />}
-            {reservationStep === 2 && <PaymentStep />}
-            {reservationStep === 3 && <SuccessStep />}
+            {/* Right Column - Reservation Summary/Payment */}
+            <div className="lg:col-span-1">
+              <div className="lg:sticky lg:top-24">
+                {reservationStep === 1 && <ReservationSummary />}
+                {reservationStep === 2 && <PaymentStep />}
+                {reservationStep === 3 && <SuccessStep />}
+              </div>
+            </div>
           </div>
         </div>
       </div>

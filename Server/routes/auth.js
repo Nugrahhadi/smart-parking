@@ -283,31 +283,43 @@ router.get("/verify", (req, res) => {
 
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
+        console.error("❌ Token verification failed:", err.message);
         return res.status(401).json({ message: "Invalid token" });
       }
 
-      // Get fresh user data from database
+      console.log("✅ Token decoded:", {
+        userId: decoded.userId,
+        email: decoded.email,
+      });
+
+      // Get fresh user data from database - USING CORRECT COLUMN NAMES
       db.query(
-        "SELECT user_id, username, email, full_name, phone_number, role FROM users WHERE user_id = ?",
+        "SELECT id, name, email, phone, role FROM users WHERE id = ?",
         [decoded.userId],
         (err, results) => {
           if (err) {
-            console.error("Database error:", err);
-            return res.status(500).json({ message: "Database error" });
+            console.error("❌ Database error in verify:", err);
+            return res
+              .status(500)
+              .json({ message: "Database error", error: err.message });
           }
 
+          console.log("📊 User query result:", results.length, "rows");
+
           if (results.length === 0) {
+            console.error("❌ User not found for userId:", decoded.userId);
             return res.status(401).json({ message: "User not found" });
           }
 
           const user = results[0];
+          console.log("✅ User found:", { id: user.id, email: user.email });
           res.json({
             message: "Token valid",
             user: {
-              id: user.user_id,
-              name: user.full_name,
+              id: user.id,
+              name: user.name,
               email: user.email,
-              phone: user.phone_number,
+              phone: user.phone,
               role: user.role,
             },
           });
@@ -315,8 +327,10 @@ router.get("/verify", (req, res) => {
       );
     });
   } catch (error) {
-    console.error("Verify token error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("❌ Verify token error:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
   }
 });
 
