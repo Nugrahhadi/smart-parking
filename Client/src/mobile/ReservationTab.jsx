@@ -146,6 +146,19 @@ const ReservationsTab = () => {
     return { active, upcoming, past };
   };
 
+  // Helper function to get price by zone type
+  const getPriceByZone = (zoneType) => {
+    const priceMap = {
+      "VIP Royal Zone": 25000,
+      "Entertainment District": 15000,
+      "Shopping Paradise": 12000,
+      "Culinary Heaven": 10000,
+      "Electric Vehicle Station": 20000,
+      "Regular Parking": 8000,
+    };
+    return priceMap[zoneType] || 8000;
+  };
+
   const {
     active: activeReservations,
     upcoming: upcomingReservations,
@@ -354,10 +367,10 @@ const ReservationsTab = () => {
                   <div className="bg-orange-50 rounded-lg p-3">
                     <div className="flex items-center text-orange-600 mb-1">
                       <CreditCard size={16} className="mr-2" />
-                      <span className="text-xs font-medium">Total</span>
+                      <span className="text-xs font-medium">Price/Hour</span>
                     </div>
                     <p className="text-sm font-semibold text-gray-800">
-                      Rp {reservation.total_cost?.toLocaleString()}
+                      Rp {getPriceByZone(reservation.zone_type || "Regular Parking").toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -431,7 +444,7 @@ const ReservationsTab = () => {
                       Upcoming
                     </span>
                     <p className="text-lg font-bold text-gray-800">
-                      Rp {reservation.total_cost?.toLocaleString()}
+                      Rp {getPriceByZone(reservation.zone_type || "Regular Parking").toLocaleString()}/hour
                     </p>
                   </div>
                 </div>
@@ -528,7 +541,7 @@ const ReservationsTab = () => {
                       </div>
                     )}
                     <p className="text-sm font-bold text-gray-800">
-                      Rp {reservation.total_cost?.toLocaleString()}
+                      Rp {getPriceByZone(reservation.zone_type || "Regular Parking").toLocaleString()}/hour
                     </p>
                   </div>
                 </div>

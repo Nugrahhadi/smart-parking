@@ -32,6 +32,19 @@ const SmartParkingApp = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
+  // Helper function to get price by zone type
+  const getPriceByZone = (zoneType) => {
+    const priceMap = {
+      "VIP Royal Zone": 25000,
+      "Entertainment District": 15000,
+      "Shopping Paradise": 12000,
+      "Culinary Heaven": 10000,
+      "Electric Vehicle Station": 20000,
+      "Regular Parking": 8000,
+    };
+    return priceMap[zoneType] || 8000;
+  };
+
   const mockParkingLocations = [
     {
       id: 1,
@@ -39,7 +52,7 @@ const SmartParkingApp = () => {
       available: 42,
       total: 120,
       distance: "1.2",
-      price: "5.000",
+      zone_type: "VIP Royal Zone",
       rating: 4.5,
       features: ["Electric Charging", "24/7 Security", "Covered Parking"],
     },
@@ -49,7 +62,7 @@ const SmartParkingApp = () => {
       available: 15,
       total: 80,
       distance: "0.8",
-      price: "7.000",
+      zone_type: "Entertainment District",
       rating: 4.3,
       features: ["Valet Service", "CCTV", "Car Wash"],
     },
@@ -59,7 +72,7 @@ const SmartParkingApp = () => {
       available: 8,
       total: 60,
       distance: "2.1",
-      price: "4.000",
+      zone_type: "Regular Parking",
       rating: 4.0,
       features: ["Near Transport", "Affordable", "Open 24/7"],
     },
@@ -76,12 +89,29 @@ const SmartParkingApp = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Hitung total available dari database
+  const totalAvailable = parkingLocations.reduce(
+    (sum, location) => sum + location.available,
+    0
+  );
+
   const goToDetail = (parkingId) => {
     navigate(`/mobile/parking/${parkingId}`);
   };
 
   const goToReserve = (parkingId) => {
     navigate(`/mobile/reserve/${parkingId}`);
+  };
+
+  // Fungsi untuk menambah available saat reservasi berhasil
+  const handleReservationSuccess = (parkingId) => {
+    setParkingLocations((prevLocations) =>
+      prevLocations.map((location) =>
+        location.id === parkingId && location.available < location.total
+          ? { ...location, available: location.available + 1 }
+          : location
+      )
+    );
   };
 
   const handleLogout = () => {
@@ -182,7 +212,7 @@ const SmartParkingApp = () => {
                 ↑ 12%
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">152</p>
+            <p className="text-2xl font-bold text-gray-900">{totalAvailable}</p>
             <p className="text-xs text-gray-500">Available</p>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-lg border border-gray-100">
@@ -203,22 +233,6 @@ const SmartParkingApp = () => {
             <p className="text-2xl font-bold text-gray-900">24/7</p>
             <p className="text-xs text-gray-500">Security</p>
           </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="flex space-x-3 mb-6 overflow-x-auto pb-2">
-          <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all whitespace-nowrap">
-            <Navigation className="w-4 h-4" />
-            <span className="text-sm font-medium">Navigate</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all whitespace-nowrap">
-            <Calendar className="w-4 h-4" />
-            <span className="text-sm font-medium">Book Now</span>
-          </button>
-          <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all whitespace-nowrap">
-            <DollarSign className="w-4 h-4" />
-            <span className="text-sm font-medium">Pay Later</span>
-          </button>
         </div>
 
         {/* Parking Locations */}
@@ -265,7 +279,7 @@ const SmartParkingApp = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-gray-900">
-                          Rp {location.price}
+                          Rp {getPriceByZone(location.zone_type).toLocaleString()}
                         </p>
                         <p className="text-xs text-gray-500">/hour</p>
                       </div>

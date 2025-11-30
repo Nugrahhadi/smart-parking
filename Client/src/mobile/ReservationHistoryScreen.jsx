@@ -1,11 +1,14 @@
 // src/screens/ReservationHistoryScreen.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Clock, MapPin, Car, CreditCard,
   CheckCircle, XCircle, RefreshCw, Crown, Music, ShoppingBag, Coffee, Zap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ReservationDetailModal from "./ReservationDetailModal";
+
+const HEADER_H = 56; // dikurangi agar gap atas lebih rapat
+const FOOTER_H = 88;
 
 const getZoneFromSlot = (slotNumber) => {
   if (!slotNumber) return "regular";
@@ -27,10 +30,23 @@ const getZoneNameFromSlot = (slotNumber) => {
 };
 const calculateDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return 0;
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  const diffMs = end - start;
-  return Math.round(diffMs / (1000 * 60 * 60));
+  try {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+    const diffMs = end - start;
+    return Math.round(diffMs / (1000 * 60 * 60));
+  } catch {
+    return 0;
+  }
+};
+
+const normalizeStatus = (s) => {
+  const v = String(s || "").trim().toLowerCase();
+  if (["active", "aktif", "ongoing", "in_progress"].includes(v)) return "active";
+  if (["completed", "complete", "selesai", "done", "finished"].includes(v)) return "completed";
+  if (["cancelled", "canceled", "dibatalkan", "void"].includes(v)) return "cancelled";
+  return "unknown";
 };
 
 const ReservationHistoryScreen = () => {
@@ -55,132 +71,191 @@ const ReservationHistoryScreen = () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        if (token) {
-          const response = await fetch("http://localhost:5000/api/reservations/my-reservations", {
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const transformed = (data || []).map((r) => ({
-              id: r.id,
-              locationName: r.parking_location || "Unknown Location",
-              locationAddress: r.location_address || "Address not available",
-              slotId: r.slot_number || "N/A",
-              zone: getZoneFromSlot(r.slot_number),
-              zoneName: getZoneNameFromSlot(r.slot_number),
-              startTime: r.start_time,
-              endTime: r.end_time,
-              reservationDate: r.reservation_date || "",
-              duration: calculateDuration(`${r.reservation_date || ""} ${r.start_time || ""}`, `${r.reservation_date || ""} ${r.end_time || ""}`),
-              totalAmount: parseFloat(r.total_cost) || 0,
-              status: r.status || "unknown",
-              createdAt: r.created_at,
-              vehiclePlate: r.license_plate,
-              vehicleName: r.vehicle_name,
-              vehicleType: r.vehicle_type,
-              paymentMethod: r.payment_method || "Cash",
-              paymentStatus: r.payment_status || "pending",
-            }));
-            setReservations(transformed);
-          } else {
-            setReservations([]);
-          }
-        } else {
-          setReservations([]);
-        }
-      } catch {
-        setReservations([]);
-      } finally {
-        setLoading(false);
-      }
+        if (!token) { setReservations([]); return; }
+        const response = await fetch("http://localhost:5000/api/reservations/my-reservations", {
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        });
+        if (!response.ok) { setReservations([]); return; }
+        const data = await response.json();
+        const transformed = (data || []).map((r) => {
+          // Parse start and end datetime properly
+          const reservationDate = r.reservation_date || "";
+          const startTimeStr = r.start_time || "";
+          const endTimeStr = r.end_time || "";
+          
+          // Combine date and time for proper datetime parsing
+          const startDateTime = reservationDate && startTimeStr 
+            ? new Date(`${reservationDate}T${startTimeStr}`)
+            : new Date(r.start_time || "");
+          const endDateTime = reservationDate && endTimeStr
+            ? new Date(`${reservationDate}T${endTimeStr}`)
+            : new Date(r.end_time || "");
+
+          return {
+            id: r.id,
+            locationName: r.parking_location || "Unknown Location",
+            locationAddress: r.location_address || "Address not available",
+            slotId: r.slot_number || "N/A",
+            zone: getZoneFromSlot(r.slot_number),
+            zoneName: getZoneNameFromSlot(r.slot_number),
+            startTime: startTimeStr,
+            endTime: endTimeStr,
+            startDateTime: startDateTime,
+            endDateTime: endDateTime,
+            reservationDate: r.reservation_date || "",
+            duration: calculateDuration(startDateTime, endDateTime),
+            totalAmount: parseFloat(r.total_cost) || 0,
+            status: normalizeStatus(r.status),
+            createdAt: r.created_at,
+            vehiclePlate: r.license_plate,
+            vehicleName: r.vehicle_name,
+            vehicleType: r.vehicle_type,
+            paymentMethod: r.payment_method || "Cash",
+            paymentStatus: r.payment_status || "pending",
+          };
+        });
+        setReservations(transformed);
+      } catch { setReservations([]); } finally { setLoading(false); }
     };
     fetchReservations();
   }, []);
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "active": return <RefreshCw className="text-blue-500" size={20} />;
-      case "completed": return <CheckCircle className="text-green-500" size={20} />;
-      case "cancelled": return <XCircle className="text-red-500" size={20} />;
-      default: return <Clock className="text-gray-500" size={20} />;
+  const formatDateTime = (dateObj) => {
+    try {
+      // Handle both string and Date object
+      const date = typeof dateObj === 'string' ? new Date(dateObj) : dateObj;
+      if (isNaN(date.getTime())) return "Invalid Date";
+      return date.toLocaleString("id-ID", {
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+      });
+    } catch {
+      return "Invalid Date";
     }
   };
-  const getStatusText = (status) => {
-    switch (status) {
-      case "active": return "Sedang Berlangsung";
-      case "completed": return "Selesai";
-      case "cancelled": return "Dibatalkan";
-      default: return "Pending";
-    }
-  };
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "active": return "text-blue-600 bg-blue-50";
-      case "completed": return "text-green-600 bg-green-50";
-      case "cancelled": return "text-red-600 bg-red-50";
-      default: return "text-gray-600 bg-gray-50";
-    }
-  };
-  const formatDateTime = (dateString) =>
-    new Date(dateString).toLocaleString("id-ID", {
-      day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
-    });
 
-  const filteredReservations = reservations.filter((r) =>
-    activeTab === "active" ? r.status === "active"
-      : activeTab === "completed" ? r.status === "completed"
-      : activeTab === "cancelled" ? r.status === "cancelled"
-      : true
-  );
+  const filteredReservations = useMemo(() => {
+    return reservations.filter((r) =>
+      activeTab === "active" ? r.status === "active"
+        : activeTab === "completed" ? r.status === "completed"
+        : activeTab === "cancelled" ? r.status === "cancelled"
+        : true
+    );
+  }, [reservations, activeTab]);
+
+  const counts = useMemo(() => ({
+    active: reservations.filter(r => r.status === "active").length,
+    completed: reservations.filter(r => r.status === "completed").length,
+    cancelled: reservations.filter(r => r.status === "cancelled").length,
+  }), [reservations]);
+
+  const Tabs = ({ active, onChange, counts }) => {
+    const items = [
+      { key: "active", label: "Aktif", icon: <RefreshCw size={16} />, count: counts.active },
+      { key: "completed", label: "Selesai", icon: <CheckCircle size={16} />, count: counts.completed },
+      { key: "cancelled", label: "Dibatalkan", icon: <XCircle size={16} />, count: counts.cancelled },
+    ];
+    const idx = items.findIndex(i => i.key === active);
+    return (
+      <div
+        className="relative z-40 pointer-events-auto bg-white/90 backdrop-blur border border-gray-200 rounded-xl p-0.5 shadow-sm"
+        role="tablist" aria-label="Reservation filters"
+      >
+        <div className="grid grid-cols-3 relative">
+          <div
+            className="absolute top-0.5 bottom-0.5 w-1/3 rounded-lg bg-blue-600/10 transition-transform duration-300"
+            style={{ transform: `translateX(${idx * 100}%)` }}
+            aria-hidden="true"
+          />
+          {items.map((t) => {
+            const selected = active === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`panel-${t.key}`}
+                onClick={() => { setSelectedReservation(null); onChange(t.key); }}
+                className={`relative z-10 flex items-center justify-center gap-2 py-2 px-3 m-0.5 rounded-lg text-sm font-semibold transition-all
+                  ${selected ? "text-blue-700" : "text-gray-700 hover:text-gray-900"}`}
+              >
+                {t.icon}
+                {t.label}
+                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold
+                  ${selected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}>
+                  {t.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   const ReservationCard = ({ reservation }) => {
     const Icon = zoneIcons[reservation.zone] || Car;
     const zoneColor = zoneColors[reservation.zone] || "from-gray-400 to-gray-600";
+    const statusChip =
+      reservation.status === "active" ? "text-blue-700 bg-blue-50 ring-1 ring-blue-200" :
+      reservation.status === "completed" ? "text-green-700 bg-green-50 ring-1 ring-green-200" :
+      reservation.status === "cancelled" ? "text-red-700 bg-red-50 ring-1 ring-red-200" :
+      "text-gray-700 bg-gray-50 ring-1 ring-gray-200";
+
     return (
-      <div className="bg-white rounded-xl p-6 shadow-lg mb-4 border-l-4 border-blue-500">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center">
-            <div className={`w-12 h-12 rounded-full bg-gradient-to-r ${zoneColor} flex items-center justify-center mr-4`}>
-              <Icon className="text-white" size={20} />
+      <div className="w-full rounded-2xl bg-white shadow-sm hover:shadow-md transition-all border border-gray-100 relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-60" aria-hidden />
+        <div className="p-5">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${zoneColor} flex items-center justify-center mr-4 shadow`}>
+                <Icon className="text-white" size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">{reservation.locationName}</h3>
+                <p className="text-sm text-gray-600">Slot {reservation.slotId} • {reservation.zoneName}</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-gray-800">{reservation.locationName}</h3>
-              <p className="text-sm text-gray-600">Slot {reservation.slotId} - {reservation.zoneName}</p>
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusChip}`}>
+              {reservation.status === "active" ? "Sedang Berlangsung" :
+               reservation.status === "completed" ? "Selesai" :
+               reservation.status === "cancelled" ? "Dibatalkan" : "Pending"}
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-[13px] text-gray-800">
+            <div className="flex items-start">
+              <MapPin size={16} className="mr-2 mt-0.5 flex-shrink-0 text-gray-500" />
+              <span className="line-clamp-2">{reservation.locationAddress}</span>
+            </div>
+            <div className="flex items-center">
+              <Clock size={16} className="mr-2 flex-shrink-0 text-gray-500" />
+              <span>{formatDateTime(reservation.startDateTime)} — {formatDateTime(reservation.endDateTime)}</span>
+            </div>
+            <div className="flex items-center">
+              <CreditCard size={16} className="mr-2 flex-shrink-0 text-gray-500" />
+              <span>Rp {reservation.totalAmount.toLocaleString()} · {reservation.duration} jam</span>
             </div>
           </div>
-          <div className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(reservation.status)}`}>
-            {getStatusText(reservation.status)}
-          </div>
-        </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center text-sm text-gray-600">
-            <MapPin size={16} className="mr-2 flex-shrink-0" />
-            <span>{reservation.locationAddress}</span>
+          <div className="mt-4 pt-3 border-t flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center">
+              {reservation.status === "active" ? <RefreshCw className="text-blue-500 mr-2" size={18} /> :
+               reservation.status === "completed" ? <CheckCircle className="text-green-500 mr-2" size={18} /> :
+               reservation.status === "cancelled" ? <XCircle className="text-red-500 mr-2" size={18} /> :
+               <Clock className="text-gray-500 mr-2" size={18} />}
+              <span>ID: {reservation.id}</span>
+            </div>
+            {reservation.status === "active" && (
+              <button
+                type="button"
+                onClick={() => setSelectedReservation(reservation)}
+                className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
+              >
+                Lihat Detail
+              </button>
+            )}
           </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <Clock size={16} className="mr-2 flex-shrink-0" />
-            <span>{formatDateTime(reservation.startTime)} - {formatDateTime(reservation.endTime)}</span>
-          </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <CreditCard size={16} className="mr-2 flex-shrink-0" />
-            <span>Rp {reservation.totalAmount.toLocaleString()} ({reservation.duration} jam)</span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between mt-4 pt-4 border-t">
-          <div className="flex items-center text-xs text-gray-500">
-            {getStatusIcon(reservation.status)}
-            <span className="ml-2">ID: {reservation.id}</span>
-          </div>
-          {reservation.status === "active" && (
-            <button 
-              onClick={() => setSelectedReservation(reservation)}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Lihat Detail
-            </button>
-          )}
         </div>
       </div>
     );
@@ -188,59 +263,56 @@ const ReservationHistoryScreen = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center pb-[calc(env(safe-area-inset-bottom)+88px)]">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading reservations...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-2 border-blue-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-gray-600">Memuat riwayat reservasi...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 pt-4">
-        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-4">
-          {[
-            { key: "active", label: "Aktif", count: reservations.filter((r) => r.status === "active").length },
-            { key: "completed", label: "Selesai", count: reservations.filter((r) => r.status === "completed").length },
-            { key: "cancelled", label: "Dibatalkan", count: reservations.filter((r) => r.status === "cancelled").length },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.key ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-800"
-              }`}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
-      </div>
+  const padTop = `calc(${HEADER_H}px + env(safe-area-inset-top))`;
+  const padBottom = `calc(${FOOTER_H}px + env(safe-area-inset-bottom))`;
 
-      <div className="max-w-7xl mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+88px)]">
-        <div className="max-w-4xl mx-auto">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="max-w-7xl mx-auto px-4" style={{ paddingTop: padTop, paddingBottom: padBottom }}>
+        <div className="mb-2">
+          <h1 className="text-2xl font-bold text-gray-900">Riwayat Reservasi</h1>
+          <p className="text-sm text-gray-600">Pantau status reservasi parkir Anda</p>
+        </div>
+
+        <div className="mb-3">
+          <Tabs active={activeTab} onChange={setActiveTab} counts={counts} />
+        </div>
+
+        <div id={`panel-${activeTab}`} role="tabpanel">
           {filteredReservations.length > 0 ? (
-            filteredReservations.map((reservation) => (
-              <ReservationCard key={reservation.id} reservation={reservation} />
-            ))
+            <div className="space-y-4">
+              {filteredReservations.map((reservation) => (
+                <ReservationCard key={reservation.id} reservation={reservation} />
+              ))}
+            </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Car className="text-gray-500" size={32} />
+            <div className="text-center py-14 bg-white/70 backdrop-blur rounded-2xl border border-dashed border-gray-200">
+              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Car className="text-blue-400" size={32} />
               </div>
-              <h3 className="text-lg font-medium text-gray-800 mb-2">
-                Tidak ada reservasi {getStatusText(activeTab).toLowerCase()}
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                Tidak ada reservasi {activeTab === "active" ? "yang sedang berlangsung" : activeTab === "completed" ? "yang selesai" : "yang dibatalkan"}
               </h3>
               <p className="text-gray-600 mb-6">
                 {activeTab === "active"
-                  ? "Anda belum memiliki reservasi yang sedang berlangsung"
-                  : "Belum ada riwayat reservasi"}
+                  ? "Anda belum memiliki reservasi aktif."
+                  : activeTab === "completed"
+                  ? "Belum ada riwayat selesai."
+                  : "Belum ada yang dibatalkan."}
               </p>
               <button
+                type="button"
                 onClick={() => navigate("/parking")}
-                className="bg-blue-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
+                className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium shadow"
               >
                 Mulai Reservasi
               </button>
@@ -250,9 +322,9 @@ const ReservationHistoryScreen = () => {
       </div>
 
       {selectedReservation && (
-        <ReservationDetailModal 
-          reservation={selectedReservation} 
-          onClose={() => setSelectedReservation(null)} 
+        <ReservationDetailModal
+          reservation={selectedReservation}
+          onClose={() => setSelectedReservation(null)}
         />
       )}
     </div>
