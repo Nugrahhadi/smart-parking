@@ -132,7 +132,7 @@ const SmartParkingApp = () => {
 
   const renderHomePage = () => {
     return (
-      <div className="h-full overflow-auto pb-32 pt-20 px-4">
+      <div className="h-full overflow-auto pb-32 pt-6 px-4">
         {/* Hero Section with Search */}
         <div className="mb-6">
           <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
@@ -333,16 +333,18 @@ const SmartParkingApp = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Modern Navigation */}
-      <ModernNavigation
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        onLogout={handleLogout}
-      />
+    <div className="flex flex-col h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative">
+      {/* Modern Navigation - Fixed Position */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <ModernNavigation
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onLogout={handleLogout}
+        />
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">{renderContent()}</div>
+      <div className="flex-1 overflow-auto pt-20">{renderContent()}</div>
     </div>
   );
 };
