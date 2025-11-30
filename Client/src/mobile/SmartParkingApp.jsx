@@ -148,7 +148,7 @@ const SmartParkingApp = () => {
       case "vehicles":
         return <MyVehiclesScreen />;
       case "reservations":
-        return <ReservationHistoryScreen />;
+        return <ReservationHistoryScreen onNavigateToHome={() => setActiveTab("home")} />;
       case "payment":
         return <PaymentTab />;
       case "profile":

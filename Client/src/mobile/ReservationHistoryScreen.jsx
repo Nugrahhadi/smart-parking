@@ -49,7 +49,7 @@ const normalizeStatus = (s) => {
   return "unknown";
 };
 
-const ReservationHistoryScreen = () => {
+const ReservationHistoryScreen = ({ onNavigateToHome }) => {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +91,12 @@ const ReservationHistoryScreen = () => {
             ? new Date(`${reservationDate}T${endTimeStr}`)
             : new Date(r.end_time || "");
 
+          // Check if end time has passed for active reservations
+          let finalStatus = normalizeStatus(r.status);
+          if (finalStatus === "active" && new Date() > endDateTime) {
+            finalStatus = "completed";
+          }
+
           return {
             id: r.id,
             locationName: r.parking_location || "Unknown Location",
@@ -105,7 +111,7 @@ const ReservationHistoryScreen = () => {
             reservationDate: r.reservation_date || "",
             duration: calculateDuration(startDateTime, endDateTime),
             totalAmount: parseFloat(r.total_cost) || 0,
-            status: normalizeStatus(r.status),
+            status: finalStatus,
             createdAt: r.created_at,
             vehiclePlate: r.license_plate,
             vehicleName: r.vehicle_name,
@@ -118,6 +124,22 @@ const ReservationHistoryScreen = () => {
       } catch { setReservations([]); } finally { setLoading(false); }
     };
     fetchReservations();
+  }, []);
+
+  // Real-time status update setiap detik
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setReservations((prevReservations) =>
+        prevReservations.map((reservation) => {
+          if (reservation.status === "active" && new Date() > reservation.endDateTime) {
+            return { ...reservation, status: "completed" };
+          }
+          return reservation;
+        })
+      );
+    }, 1000); // Update setiap 1 detik
+
+    return () => clearInterval(interval);
   }, []);
 
   const formatDateTime = (dateObj) => {
@@ -311,7 +333,7 @@ const ReservationHistoryScreen = () => {
               </p>
               <button
                 type="button"
-                onClick={() => navigate("/parking")}
+                onClick={() => onNavigateToHome && onNavigateToHome()}
                 className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium shadow"
               >
                 Mulai Reservasi
