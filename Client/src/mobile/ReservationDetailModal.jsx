@@ -113,10 +113,10 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <p className="font-semibold text-gray-900 mb-1">
-                {reservation.locationName || "Unknown Location"}
+                {reservation.parking_location || "Unknown Location"}
               </p>
               <p className="text-gray-600 text-sm">
-                {reservation.locationAddress || "Address not available"}
+                {reservation.location_address || "Address not available"}
               </p>
             </div>
           </div>
@@ -130,7 +130,7 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
               </div>
               <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
                 <p className="font-bold text-purple-900">
-                  {reservation.slotId || "N/A"}
+                  {reservation.slot_number || "N/A"}
                 </p>
               </div>
             </div>
@@ -141,7 +141,7 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
               </div>
               <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
                 <p className="font-bold text-purple-900 text-sm">
-                  {reservation.zoneName || "Regular Zone"}
+                  {reservation.zone_type || "Regular Zone"}
                 </p>
               </div>
             </div>
@@ -157,49 +157,33 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
               <div>
                 <p className="text-gray-600 text-sm mb-1">Date</p>
                 <p className="font-semibold text-gray-900">
-                  {formatDate(reservation.startTime)}
+                  {reservation.reservation_date 
+                    ? formatDate(reservation.reservation_date)
+                    : "N/A"}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-600 text-sm mb-1">Start Time</p>
                   <p className="font-semibold text-gray-900">
-                    {reservation.startTime
-                      ? new Date(reservation.startTime).toLocaleTimeString(
-                          "en-US",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          }
-                        )
-                      : "N/A"}
+                    {reservation.start_time || "N/A"}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-600 text-sm mb-1">End Time</p>
                   <p className="font-semibold text-gray-900">
-                    {reservation.endTime
-                      ? new Date(reservation.endTime).toLocaleTimeString(
-                          "en-US",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          }
-                        )
-                      : "N/A"}
+                    {reservation.end_time || "N/A"}
                   </p>
                 </div>
               </div>
               <div className="text-sm text-gray-600 pt-2 border-t border-gray-300">
-                Duration: <span className="font-semibold text-gray-900">{reservation.duration || 0} hours</span>
+                Duration: <span className="font-semibold text-gray-900">{reservation.duration || 1} jam</span>
               </div>
             </div>
           </div>
 
           {/* Vehicle Info */}
-          {reservation.vehiclePlate && (
+          {(reservation.license_plate || reservation.vehicle_type) && (
             <div>
               <div className="flex items-center text-gray-700 mb-3">
                 <Car size={20} className="mr-2 text-blue-600" />
@@ -210,14 +194,14 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
                   <div>
                     <p className="text-gray-600 text-sm mb-1">License Plate</p>
                     <p className="font-bold text-gray-900 text-lg">
-                      {reservation.vehiclePlate}
+                      {reservation.license_plate || "N/A"}
                     </p>
                   </div>
-                  {reservation.vehicleType && (
+                  {reservation.vehicle_type && (
                     <div className="text-right">
                       <p className="text-gray-600 text-sm mb-1">Type</p>
                       <p className="font-semibold text-gray-900">
-                        {reservation.vehicleType}
+                        {reservation.vehicle_type}
                       </p>
                     </div>
                   )}
@@ -236,10 +220,10 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-gray-700 font-medium">Total Amount</span>
                 <span className="text-2xl font-bold text-green-700">
-                  {formatCurrency(reservation.totalAmount || 0)}
+                  {formatCurrency(reservation.total_cost || 0)}
                 </span>
               </div>
-              {reservation.paymentStatus && (
+              {reservation.payment_status && (
                 <div className="flex items-center justify-between pt-2 border-t border-green-200">
                   <div className="flex items-center">
                     <CreditCard size={16} className="mr-2 text-gray-600" />
@@ -249,20 +233,20 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
                   </div>
                   <span
                     className={`text-sm font-semibold capitalize ${
-                      reservation.paymentStatus === "completed"
+                      reservation.payment_status === "completed"
                         ? "text-green-700"
                         : "text-yellow-700"
                     }`}
                   >
-                    {reservation.paymentStatus}
+                    {reservation.payment_status}
                   </span>
                 </div>
               )}
-              {reservation.paymentMethod && (
+              {reservation.payment_method && (
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-sm text-gray-600">Payment Method</span>
                   <span className="text-sm font-semibold text-gray-900 capitalize">
-                    {reservation.paymentMethod.replace("_", " ")}
+                    {reservation.payment_method.replace("_", " ")}
                   </span>
                 </div>
               )}

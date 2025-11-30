@@ -330,7 +330,6 @@ router.post("/", authenticateToken, (req, res) => {
       console.log("✅ Spot is available!");
 
       const spot = spotResults[0];
-      const pricePerHour = parseFloat(spot.price_per_hour);
       const assignedSpotId = spot.id; // ✅ FIXED: Use spot.id (from ps.id in query)
 
       console.log("📍 Assigned spot:");
@@ -339,21 +338,15 @@ router.post("/", authenticateToken, (req, res) => {
       console.log("   Zone Type:", spot.zone_type);
       console.log("   Status:", spot.status);
 
-      // Calculate total amount
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      const hours = Math.ceil((end - start) / (1000 * 60 * 60)); // Round up to next hour
-      const calculatedAmount = hours * pricePerHour;
-
-      // Use calculated amount or received totalPrice (prefer calculated for accuracy)
-      const finalTotalAmount = calculatedAmount || totalPrice || 0;
+      // ✅ FIX: Use totalPrice from frontend (already calculated correctly by zone)
+      // Backend price_per_hour is from parking_locations (same for all zones - WRONG!)
+      // Frontend calculates based on zone_type: VIP=25k, Entertainment=15k, Regular=8k
+      const finalTotalAmount = totalPrice || 0;
 
       console.log("\n💰 Price calculation:");
-      console.log("   Price per hour:", pricePerHour);
-      console.log("   Duration (hours):", hours);
-      console.log("   Calculated amount:", calculatedAmount);
-      console.log("   Received totalPrice:", totalPrice);
-      console.log("   Final amount:", finalTotalAmount);
+      console.log("   Zone Type:", spot.zone_type);
+      console.log("   Received totalPrice from frontend:", totalPrice);
+      console.log("   Final amount (using frontend price):", finalTotalAmount);
 
       // ========================================
       // 🔍 STEP 5: INSERT RESERVATION
@@ -660,6 +653,16 @@ router.get("/my-reservations", authenticateToken, (req, res) => {
           end_time: formatTime(reservation.end_time),
           actual_start_time: reservation.actual_start_time,
           actual_end_time: reservation.actual_end_time,
+          duration: (() => {
+            // Calculate duration in hours from start_time and end_time
+            if (reservation.start_time && reservation.end_time) {
+              const start = new Date(reservation.start_time);
+              const end = new Date(reservation.end_time);
+              const hours = Math.ceil((end - start) / (1000 * 60 * 60));
+              return hours;
+            }
+            return 1; // Default to 1 hour if calculation fails
+          })(),
           total_cost: parseFloat(reservation.total_amount || 0), // ✅ FIXED: Use 'total_amount' from DB
           status: reservation.status,
           payment_status: reservation.payment_status,

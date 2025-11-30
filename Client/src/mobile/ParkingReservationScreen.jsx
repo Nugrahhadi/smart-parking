@@ -12,6 +12,7 @@ import {
   Music,
   Zap,
   Shield,
+  Calendar,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -23,6 +24,14 @@ const ParkingReservationScreen = () => {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
+  
+  // Date and time state
+  const [reservationDate, setReservationDate] = useState(
+    new Date().toISOString().split('T')[0] // Default to today
+  );
+  const [arrivalTime, setArrivalTime] = useState(
+    new Date().toTimeString().split(' ')[0].slice(0, 5) // Default to current time (HH:MM)
+  );
 
   const [loading, setLoading] = useState(true);
   const [reservationStep, setReservationStep] = useState(1);
@@ -380,6 +389,16 @@ const ParkingReservationScreen = () => {
     const zone = mallZones[selectedSlot.zone];
     const totalPrice = zone.price * duration;
     const Icon = zone.icon;
+    
+    // Calculate end time based on arrival time + duration
+    const calculateEndTime = () => {
+      if (!arrivalTime) return "N/A";
+      const [hours, minutes] = arrivalTime.split(':').map(Number);
+      const startDate = new Date();
+      startDate.setHours(hours, minutes, 0, 0);
+      const endDate = new Date(startDate.getTime() + duration * 60 * 60 * 1000);
+      return endDate.toTimeString().split(' ')[0].slice(0, 5); // HH:MM format
+    };
 
     return (
       <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -412,6 +431,35 @@ const ParkingReservationScreen = () => {
             </div>
           </div>
 
+          {/* Date Picker */}
+          <div className="space-y-2">
+            <label className="font-medium text-gray-700 text-sm sm:text-base flex items-center">
+              <Calendar className="mr-2 text-blue-600" size={18} />
+              Tanggal Kedatangan:
+            </label>
+            <input
+              type="date"
+              value={reservationDate}
+              onChange={(e) => setReservationDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]} // Can't select past dates
+              className="w-full p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base transition-all"
+            />
+          </div>
+
+          {/* Time Picker */}
+          <div className="space-y-2">
+            <label className="font-medium text-gray-700 text-sm sm:text-base flex items-center">
+              <Clock className="mr-2 text-blue-600" size={18} />
+              Jam Kedatangan:
+            </label>
+            <input
+              type="time"
+              value={arrivalTime}
+              onChange={(e) => setArrivalTime(e.target.value)}
+              className="w-full p-2.5 sm:p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base transition-all"
+            />
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="font-medium text-gray-700 text-sm sm:text-base">
               Durasi:
@@ -434,6 +482,22 @@ const ParkingReservationScreen = () => {
                 +
               </button>
             </div>
+          </div>
+
+          {/* End Time Display */}
+          <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-gray-700 text-sm sm:text-base flex items-center">
+                <Clock className="mr-2 text-purple-600" size={18} />
+                Waktu Akhir:
+              </span>
+              <span className="font-bold text-purple-800 text-base sm:text-lg">
+                {calculateEndTime()}
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 mt-1">
+              Parkir dari {arrivalTime} hingga {calculateEndTime()} ({duration} jam)
+            </p>
           </div>
 
           {/* Vehicle Selection */}
@@ -519,7 +583,7 @@ const ParkingReservationScreen = () => {
           return;
         }
 
-        // Format datetime for MySQL
+        // Format datetime for MySQL using selected date and time
         const formatDateTimeForMySQL = (date) => {
           const d = new Date(date);
           const year = d.getFullYear();
@@ -531,8 +595,11 @@ const ParkingReservationScreen = () => {
           return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
         };
 
-        const startTime = new Date();
-        const endTime = new Date(Date.now() + duration * 60 * 60 * 1000);
+        // ✅ Use selected date and arrival time from user input
+        const [hours, minutes] = arrivalTime.split(':').map(Number);
+        const startTime = new Date(reservationDate);
+        startTime.setHours(hours, minutes, 0, 0);
+        const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000);
 
         // ✅ NEW FLOW: STEP 1 - VALIDATE PAYMENT FIRST (simulasi payment gateway)
         console.log("💳 Step 1: Validating payment...");
@@ -756,6 +823,24 @@ const ParkingReservationScreen = () => {
   const SuccessStep = () => {
     const zone = mallZones[selectedSlot.zone];
     const totalPrice = zone.price * duration;
+    
+    // Calculate end time
+    const [hours, minutes] = arrivalTime.split(':').map(Number);
+    const startDate = new Date(reservationDate);
+    startDate.setHours(hours, minutes, 0, 0);
+    const endDate = new Date(startDate.getTime() + duration * 60 * 60 * 1000);
+    const endTime = endDate.toTimeString().split(' ')[0].slice(0, 5);
+    
+    // Format date for display
+    const formatDisplayDate = (dateStr) => {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    };
 
     return (
       <div className="bg-white rounded-xl p-4 sm:p-6 shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -789,6 +874,20 @@ const ParkingReservationScreen = () => {
               <span className="font-medium text-right ml-2 truncate max-w-[60%]">
                 {selectedSlot.number || selectedSlot.displayId} - {zone.name}
               </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Tanggal:</span>
+              <span className="font-medium text-right ml-2 truncate max-w-[60%]">
+                {formatDisplayDate(reservationDate)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Waktu Mulai:</span>
+              <span className="font-medium">{arrivalTime}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Waktu Selesai:</span>
+              <span className="font-medium">{endTime}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Kendaraan:</span>
