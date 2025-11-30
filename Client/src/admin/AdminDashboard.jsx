@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart3,
   Users,
@@ -16,6 +16,7 @@ import {
   ArrowDownRight,
   Cpu,
   Car,
+  RefreshCw,
 } from "lucide-react";
 import {
   BarChart,
@@ -27,6 +28,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+const API_URL = "http://localhost:5000/api";
+
 const AdminDashboard = () => {
   const [currentDate] = useState(
     new Date().toLocaleDateString("en-US", {
@@ -37,134 +40,147 @@ const AdminDashboard = () => {
     })
   );
 
-  // Mock data for charts
-  const parkingData = [
-    { name: "6 AM", available: 105, occupied: 15 },
-    { name: "8 AM", available: 85, occupied: 35 },
-    { name: "10 AM", available: 60, occupied: 60 },
-    { name: "12 PM", available: 45, occupied: 75 },
-    { name: "2 PM", available: 35, occupied: 85 },
-    { name: "4 PM", available: 30, occupied: 90 },
-    { name: "6 PM", available: 40, occupied: 80 },
-    { name: "8 PM", available: 65, occupied: 55 },
-    { name: "10 PM", available: 90, occupied: 30 },
-  ];
+  const [metrics, setMetrics] = useState({
+    total_revenue: 0,
+    avg_occupancy: 0,
+    active_reservations: 0,
+    new_users: 0,
+    revenue_growth: 0,
+    occupancy_growth: 0,
+    reservations_growth: 0,
+    users_growth: 0,
+  });
 
-  // Mock parking locations data
-  const parkingLocations = [
-    {
-      id: 1,
-      name: "Central Mall Parking",
-      available: 42,
-      total: 120,
-      occupancy: "65%",
-      status: "active",
-      revenue: "Rp 2.450.000",
-      sensors: { total: 120, online: 118 },
-    },
-    {
-      id: 2,
-      name: "City Plaza Parking",
-      available: 15,
-      total: 80,
-      occupancy: "81%",
-      status: "active",
-      revenue: "Rp 1.875.000",
-      sensors: { total: 80, online: 80 },
-    },
-    {
-      id: 3,
-      name: "Station Parking",
-      available: 8,
-      total: 60,
-      occupancy: "87%",
-      status: "active",
-      revenue: "Rp 1.245.000",
-      sensors: { total: 60, online: 57 },
-    },
-    {
-      id: 4,
-      name: "Harbor View Parking",
-      available: 22,
-      total: 45,
-      occupancy: "51%",
-      status: "maintenance",
-      revenue: "Rp 780.000",
-      sensors: { total: 45, online: 36 },
-    },
-  ];
+  const [parkingData, setParkingData] = useState([]);
+  const [parkingLocations, setParkingLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock statistics data
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem("token");
+  };
+
+  // Fetch dashboard metrics
+  const fetchMetrics = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/dashboard/metrics`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setMetrics(result.data);
+      }
+    } catch (err) {
+      console.error("Error fetching metrics:", err);
+      setError("Failed to fetch dashboard metrics");
+    }
+  };
+
+  // Fetch chart data
+  const fetchChartData = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/dashboard/chart`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setParkingData(result.data);
+      }
+    } catch (err) {
+      console.error("Error fetching chart data:", err);
+    }
+  };
+
+  // Fetch parking locations
+  const fetchLocations = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/locations`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setParkingLocations(result.data);
+      }
+    } catch (err) {
+      console.error("Error fetching locations:", err);
+    }
+  };
+
+  // Load all data
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    await Promise.all([fetchMetrics(), fetchChartData(), fetchLocations()]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+    // Refresh data every 60 seconds
+    const interval = setInterval(loadData, 60000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return `Rp ${amount.toLocaleString()}`;
+  };
+
+  // Format percentage
+  const formatPercentage = (value) => {
+    if (value === 0) return "0%";
+    const sign = value > 0 ? "+" : "";
+    return `${sign}${value}%`;
+  };
+
   const statistics = [
     {
       title: "Total Revenue",
-      value: "Rp 6.350.000",
-      change: "+12.5%",
-      isPositive: true,
+      value: formatCurrency(metrics.total_revenue || 0),
+      change: formatPercentage(metrics.revenue_growth || 0),
+      isPositive: (metrics.revenue_growth || 0) >= 0,
     },
     {
       title: "Average Occupancy",
-      value: "73%",
-      change: "+5.2%",
-      isPositive: true,
+      value: `${metrics.avg_occupancy || 0}%`,
+      change: formatPercentage(metrics.occupancy_growth || 0),
+      isPositive: (metrics.occupancy_growth || 0) >= 0,
     },
     {
       title: "Active Reservations",
-      value: "87",
-      change: "-3.1%",
-      isPositive: false,
+      value: metrics.active_reservations || 0,
+      change: formatPercentage(metrics.reservations_growth || 0),
+      isPositive: (metrics.reservations_growth || 0) >= 0,
     },
     {
       title: "New Users",
-      value: "142",
-      change: "+24.8%",
-      isPositive: true,
+      value: metrics.new_users || 0,
+      change: formatPercentage(metrics.users_growth || 0),
+      isPositive: (metrics.users_growth || 0) >= 0,
     },
   ];
 
-  // Mock recent activities
-  const recentActivities = [
-    {
-      id: 1,
-      type: "reservation",
-      user: "John Doe",
-      location: "Central Mall Parking",
-      slot: "A-12",
-      time: "10:25 AM",
-    },
-    {
-      id: 2,
-      type: "completed",
-      user: "Jane Smith",
-      location: "City Plaza Parking",
-      slot: "B-08",
-      time: "10:18 AM",
-    },
-    {
-      id: 3,
-      type: "cancelled",
-      user: "Robert Johnson",
-      location: "Station Parking",
-      slot: "C-15",
-      time: "10:02 AM",
-    },
-    {
-      id: 4,
-      type: "sensor_alert",
-      location: "Harbor View Parking",
-      slot: "D-22",
-      issue: "Connectivity Lost",
-      time: "9:54 AM",
-    },
-    {
-      id: 5,
-      type: "payment",
-      user: "Maria Garcia",
-      amount: "Rp 35.000",
-      location: "Central Mall Parking",
-      time: "9:45 AM",
-    },
-  ];
+  // Calculate real-time overview stats from locations
+  const totalSlots = parkingLocations.reduce(
+    (sum, loc) => sum + (loc.total_slots || 0),
+    0
+  );
+  const occupiedSlots = parkingLocations.reduce(
+    (sum, loc) => sum + (loc.occupied_slots || 0),
+    0
+  );
+  const availableSlots = totalSlots - occupiedSlots;
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -233,6 +249,14 @@ const AdminDashboard = () => {
           </div>
 
           <div className="flex items-center space-x-4">
+            <button
+              onClick={loadData}
+              className="p-2 hover:bg-gray-100 rounded-full"
+              title="Refresh data"
+            >
+              <RefreshCw size={20} className="text-gray-600" />
+            </button>
+
             <div className="relative">
               <input
                 type="text"
@@ -248,7 +272,7 @@ const AdminDashboard = () => {
             <div className="relative">
               <Bell size={22} className="text-gray-600" />
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full">
-                3
+                0
               </span>
             </div>
 
@@ -259,301 +283,276 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-4 gap-4 p-4">
-          {statistics.map((stat, index) => (
-            <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="flex justify-between items-start">
-                <h3 className="text-gray-500 font-medium">{stat.title}</h3>
-                <span
-                  className={`text-sm px-2 py-1 rounded-full ${
-                    stat.isPositive
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}
-                >
-                  {stat.isPositive ? (
-                    <ArrowUpRight size={14} className="inline mr-1" />
-                  ) : (
-                    <ArrowDownRight size={14} className="inline mr-1" />
-                  )}
-                  {stat.change}
-                </span>
-              </div>
-              <p className="text-2xl font-bold mt-2">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-2 gap-4 p-4">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-700">Parking Occupancy</h3>
-              <div className="flex items-center text-sm font-medium text-gray-600">
-                <Calendar size={16} className="mr-1" />
-                Today
-                <ChevronDown size={16} className="ml-1" />
-              </div>
-            </div>
-
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={parkingData}
-                  margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar
-                    dataKey="occupied"
-                    fill="#3B82F6"
-                    radius={[4, 4, 0, 0]}
-                  />
-                  <Bar
-                    dataKey="available"
-                    fill="#E5E7EB"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="flex justify-center mt-4">
-              <div className="flex items-center mr-4">
-                <div className="w-3 h-3 bg-blue-500 rounded-sm mr-2"></div>
-                <span className="text-sm text-gray-600">Occupied</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-gray-200 rounded-sm mr-2"></div>
-                <span className="text-sm text-gray-600">Available</span>
-              </div>
-            </div>
+        {/* Error Message */}
+        {error && (
+          <div className="m-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
           </div>
+        )}
 
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-700">Real-time Overview</h3>
-              <div className="flex items-center text-sm font-medium text-blue-600">
-                <Clock size={16} className="mr-1" />
-                Live Data
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <h4 className="text-gray-600 font-medium text-sm mb-1">
-                  Total Slots
-                </h4>
-                <p className="text-2xl font-bold">305</p>
-                <div className="flex items-center mt-1 text-sm text-gray-500">
-                  <span>All parking locations</span>
-                </div>
-              </div>
-
-              <div className="bg-green-50 p-3 rounded-lg">
-                <h4 className="text-gray-600 font-medium text-sm mb-1">
-                  Available
-                </h4>
-                <p className="text-2xl font-bold text-green-600">87</p>
-                <div className="flex items-center mt-1 text-sm text-gray-500">
-                  <span>28.5% of total</span>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <h4 className="text-gray-600 font-medium text-sm mb-1">
-                  Occupied
-                </h4>
-                <p className="text-2xl font-bold text-blue-600">218</p>
-                <div className="flex items-center mt-1 text-sm text-gray-500">
-                  <span>71.5% of total</span>
-                </div>
-              </div>
-
-              <div className="bg-yellow-50 p-3 rounded-lg">
-                <h4 className="text-gray-600 font-medium text-sm mb-1">
-                  Reserved
-                </h4>
-                <p className="text-2xl font-bold text-yellow-600">45</p>
-                <div className="flex items-center mt-1 text-sm text-gray-500">
-                  <span>14.8% of total</span>
-                </div>
-              </div>
-            </div>
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <RefreshCw size={32} className="animate-spin text-blue-600" />
           </div>
-        </div>
-
-        {/* Parking Locations Table */}
-        <div className="p-4">
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="p-4 flex justify-between items-center border-b">
-              <h3 className="font-bold text-gray-700">Parking Locations</h3>
-              <div className="flex space-x-2">
-                <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md flex items-center text-sm">
-                  <Download size={14} className="mr-1" />
-                  Export
-                </button>
-                <button className="px-3 py-1 bg-blue-600 text-white rounded-md flex items-center text-sm">
-                  <Plus size={14} className="mr-1" />
-                  Add Location
-                </button>
-              </div>
-            </div>
-
-            <table className="w-full">
-              <thead className="bg-gray-50 text-gray-600 text-sm">
-                <tr>
-                  <th className="py-3 px-4 text-left font-medium">
-                    Location Name
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium">Slots</th>
-                  <th className="py-3 px-4 text-left font-medium">Occupancy</th>
-                  <th className="py-3 px-4 text-left font-medium">Status</th>
-                  <th className="py-3 px-4 text-left font-medium">
-                    Today's Revenue
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium">Sensors</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {parkingLocations.map((location) => (
-                  <tr key={location.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div className="font-medium">{location.name}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div>
-                        <span className="text-green-600 font-medium">
-                          {location.available}
-                        </span>
-                        <span className="text-gray-500">
-                          {" "}
-                          / {location.total}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-blue-600 h-2.5 rounded-full"
-                          style={{ width: location.occupancy }}
-                        ></div>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        {location.occupancy}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          location.status === "active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {location.status === "active"
-                          ? "Active"
-                          : "Maintenance"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-medium">
-                      {location.revenue}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="text-sm">
-                        <span
-                          className={`font-medium ${
-                            location.sensors.online === location.sensors.total
-                              ? "text-green-600"
-                              : "text-yellow-600"
-                          }`}
-                        >
-                          {location.sensors.online}
-                        </span>
-                        <span className="text-gray-600">
-                          {" "}
-                          / {location.sensors.total} online
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Recent Activities */}
-        <div className="p-4">
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b">
-              <h3 className="font-bold text-gray-700">Recent Activities</h3>
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="p-4 flex items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
-                      activity.type === "reservation"
-                        ? "bg-blue-100 text-blue-600"
-                        : activity.type === "completed"
-                        ? "bg-green-100 text-green-600"
-                        : activity.type === "cancelled"
-                        ? "bg-red-100 text-red-600"
-                        : activity.type === "sensor_alert"
-                        ? "bg-yellow-100 text-yellow-600"
-                        : "bg-purple-100 text-purple-600"
-                    }`}
-                  >
-                    {activity.type === "reservation" ? (
-                      <Car size={20} />
-                    ) : activity.type === "completed" ? (
-                      <Clock size={20} />
-                    ) : activity.type === "cancelled" ? (
-                      <Clock size={20} />
-                    ) : activity.type === "sensor_alert" ? (
-                      <Cpu size={20} />
-                    ) : (
-                      <CreditCard size={20} />
-                    )}
+        ) : (
+          <>
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-4 gap-4 p-4">
+              {statistics.map((stat, index) => (
+                <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-gray-500 font-medium">{stat.title}</h3>
+                    <span
+                      className={`text-sm px-2 py-1 rounded-full ${
+                        stat.isPositive
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {stat.isPositive ? (
+                        <ArrowUpRight size={14} className="inline mr-1" />
+                      ) : (
+                        <ArrowDownRight size={14} className="inline mr-1" />
+                      )}
+                      {stat.change}
+                    </span>
                   </div>
-
-                  <div className="flex-grow">
-                    <div className="font-medium">
-                      {activity.type === "reservation"
-                        ? `New reservation by ${activity.user}`
-                        : activity.type === "completed"
-                        ? `Parking completed by ${activity.user}`
-                        : activity.type === "cancelled"
-                        ? `Reservation cancelled by ${activity.user}`
-                        : activity.type === "sensor_alert"
-                        ? `Sensor issue detected`
-                        : `Payment received from ${activity.user}`}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {activity.location}
-                      {activity.slot ? `, Slot ${activity.slot}` : ""}
-                      {activity.issue ? `, Issue: ${activity.issue}` : ""}
-                      {activity.amount ? `, Amount: ${activity.amount}` : ""}
-                    </div>
-                  </div>
-
-                  <div className="text-sm text-gray-500">{activity.time}</div>
+                  <p className="text-2xl font-bold mt-2">{stat.value}</p>
                 </div>
               ))}
             </div>
+            {/* Charts */}
+            <div className="grid grid-cols-2 gap-4 p-4">
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-gray-700">Parking Occupancy</h3>
+                  <div className="flex items-center text-sm font-medium text-gray-600">
+                    <Calendar size={16} className="mr-1" />
+                    Today
+                    <ChevronDown size={16} className="ml-1" />
+                  </div>
+                </div>
 
-            <div className="p-4 border-t">
-              <button className="text-blue-600 font-medium text-sm">
-                View All Activities
-              </button>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={parkingData}
+                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Bar
+                        dataKey="occupied"
+                        fill="#3B82F6"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="available"
+                        fill="#E5E7EB"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="flex justify-center mt-4">
+                  <div className="flex items-center mr-4">
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm mr-2"></div>
+                    <span className="text-sm text-gray-600">Occupied</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-gray-200 rounded-sm mr-2"></div>
+                    <span className="text-sm text-gray-600">Available</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-gray-700">
+                    Real-time Overview
+                  </h3>
+                  <div className="flex items-center text-sm font-medium text-blue-600">
+                    <Clock size={16} className="mr-1" />
+                    Live Data
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <h4 className="text-gray-600 font-medium text-sm mb-1">
+                      Total Slots
+                    </h4>
+                    <p className="text-2xl font-bold">{totalSlots}</p>
+                    <div className="flex items-center mt-1 text-sm text-gray-500">
+                      <span>All parking locations</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <h4 className="text-gray-600 font-medium text-sm mb-1">
+                      Available
+                    </h4>
+                    <p className="text-2xl font-bold text-green-600">
+                      {availableSlots}
+                    </p>
+                    <div className="flex items-center mt-1 text-sm text-gray-500">
+                      <span>
+                        {totalSlots > 0
+                          ? ((availableSlots / totalSlots) * 100).toFixed(1)
+                          : 0}
+                        % of total
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <h4 className="text-gray-600 font-medium text-sm mb-1">
+                      Occupied
+                    </h4>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {occupiedSlots}
+                    </p>
+                    <div className="flex items-center mt-1 text-sm text-gray-500">
+                      <span>
+                        {totalSlots > 0
+                          ? ((occupiedSlots / totalSlots) * 100).toFixed(1)
+                          : 0}
+                        % of total
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <h4 className="text-gray-600 font-medium text-sm mb-1">
+                      Active Reservations
+                    </h4>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {metrics.active_reservations || 0}
+                    </p>
+                    <div className="flex items-center mt-1 text-sm text-gray-500">
+                      <span>
+                        {totalSlots > 0
+                          ? (
+                              ((metrics.active_reservations || 0) /
+                                totalSlots) *
+                              100
+                            ).toFixed(1)
+                          : 0}
+                        % of total
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>{" "}
+            {/* Parking Locations Table */}
+            <div className="p-4">
+              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="p-4 flex justify-between items-center border-b">
+                  <h3 className="font-bold text-gray-700">Parking Locations</h3>
+                  <div className="flex space-x-2">
+                    <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md flex items-center text-sm">
+                      <Download size={14} className="mr-1" />
+                      Export
+                    </button>
+                    <button className="px-3 py-1 bg-blue-600 text-white rounded-md flex items-center text-sm">
+                      <Plus size={14} className="mr-1" />
+                      Add Location
+                    </button>
+                  </div>
+                </div>
+
+                <table className="w-full">
+                  <thead className="bg-gray-50 text-gray-600 text-sm">
+                    <tr>
+                      <th className="py-3 px-4 text-left font-medium">
+                        Location Name
+                      </th>
+                      <th className="py-3 px-4 text-left font-medium">Slots</th>
+                      <th className="py-3 px-4 text-left font-medium">
+                        Occupancy
+                      </th>
+                      <th className="py-3 px-4 text-left font-medium">
+                        Status
+                      </th>
+                      <th className="py-3 px-4 text-left font-medium">
+                        Today&apos;s Revenue
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {parkingLocations.length > 0 ? (
+                      parkingLocations.map((location) => {
+                        const availableSlots =
+                          location.total_slots - location.occupied_slots;
+                        return (
+                          <tr key={location.id} className="hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <div className="font-medium">{location.name}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div>
+                                <span className="text-green-600 font-medium">
+                                  {availableSlots}
+                                </span>
+                                <span className="text-gray-500">
+                                  {" "}
+                                  / {location.total_slots}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                <div
+                                  className="bg-blue-600 h-2.5 rounded-full"
+                                  style={{
+                                    width: `${location.occupancy_rate || 0}%`,
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {location.occupancy_rate || 0}%
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs ${
+                                  location.status === "active"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
+                                {location.status === "active"
+                                  ? "Active"
+                                  : "Maintenance"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-medium">
+                              {formatCurrency(location.today_revenue || 0)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan="5"
+                          className="py-8 text-center text-gray-500"
+                        >
+                          No parking locations found
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

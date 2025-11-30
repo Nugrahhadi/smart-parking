@@ -11,7 +11,6 @@ import ParkingDetailScreen from "./mobile/ParkingDetailScreen";
 import ParkingReservationScreen from "./mobile/ParkingReservationScreen";
 import LoginRegisterScreen from "./mobile/LoginRegisterScreen";
 import AdminDashboard from "./admin/AdminDashboard";
-import SensorMonitoringScreen from "./admin/SensorMonitoringScreen";
 import AdminUserManagement from "./admin/AdminUserManagement";
 import AdminSystemConfig from "./admin/AdminSystemConfig";
 import AdminReports from "./admin/AdminReports";
@@ -149,14 +148,6 @@ function App() {
             element={
               <AdminRoute>
                 <AdminDashboard />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/sensors"
-            element={
-              <AdminRoute>
-                <SensorMonitoringScreen />
               </AdminRoute>
             }
           />

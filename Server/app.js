@@ -66,7 +66,12 @@ app.use("/api/reservation", require("./routes/reservation"));
 app.use("/api/reservations", require("./routes/reservation")); // ✅ Added plural alias
 app.use("/api/vehicles", require("./routes/vehicles"));
 app.use("/api/payments", require("./routes/payment")); // ✅ NEW: Payment routes
-// app.use('/api/admin', require('./routes/admin'));
+
+// ✅ Admin Routes
+app.use("/api/admin/dashboard", require("./routes/admin/dashboard"));
+app.use("/api/admin/locations", require("./routes/admin/locations"));
+app.use("/api/admin/users", require("./routes/admin/users"));
+app.use("/api/admin/transactions", require("./routes/admin/transactions"));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

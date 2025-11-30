@@ -13,7 +13,37 @@ import {
 } from "lucide-react";
 
 const AdminSystemConfig = () => {
-  // Mock configuration data
+  // Show placeholder message since backend API is not implemented yet
+  const [showPlaceholder] = useState(true);
+
+  if (showPlaceholder) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Info size={32} className="text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">System Configuration</h2>
+          <p className="text-gray-600 mb-6">
+            The system configuration API is not yet implemented. This feature
+            will be available soon.
+          </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+            <h3 className="font-medium text-blue-900 mb-2">Coming Soon:</h3>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• General system settings</li>
+              <li>• Payment gateway configuration</li>
+              <li>• Notification preferences</li>
+              <li>• System maintenance mode</li>
+              <li>• Backup management</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mock configuration data (not used currently)
   const [config, setConfig] = useState({
     general: {
       systemName: "Smart Parking System",
