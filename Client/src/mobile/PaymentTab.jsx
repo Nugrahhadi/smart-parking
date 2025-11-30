@@ -8,6 +8,7 @@ import {
   CheckCircle,
   Calendar,
   AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import api from "../services/api";
 import PaymentDetailModal from "./PaymentDetailModal";
@@ -110,45 +111,53 @@ const PaymentsTab = () => {
   };
 
   return (
-    <div className="flex flex-col h-full p-4">
-      <h1 className="text-xl font-bold mb-4">Payment History</h1>
+    <div className="flex flex-col h-full bg-gradient-to-b from-gray-50 to-white">
+      {/* Enhanced Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-6 shadow-md">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl font-bold">Payment History</h1>
+          <CreditCard size={28} className="opacity-80" />
+        </div>
+        <p className="text-blue-100 text-sm">Track all your parking payments</p>
+      </div>
 
       {/* Transaction History Section */}
-      <div className="space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
         {/* Loading State */}
         {loading && (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 mt-2">Loading payment history...</p>
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600"></div>
+            <p className="text-gray-600 mt-4 font-medium">Loading payment history...</p>
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-            <AlertCircle
-              size={20}
-              className="text-red-600 mr-2 mt-0.5 flex-shrink-0"
-            />
-            <div>
-              <p className="text-red-800 font-medium">Error</p>
-              <p className="text-red-600 text-sm">{error}</p>
-              <button
-                onClick={fetchPaymentHistory}
-                className="mt-2 text-red-600 text-sm underline hover:text-red-800"
-              >
-                Try Again
-              </button>
+          <div className="bg-red-50 border-l-4 border-red-600 rounded-lg p-4 shadow-sm">
+            <div className="flex items-start">
+              <AlertCircle size={20} className="text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-red-900 font-semibold">Error</p>
+                <p className="text-red-700 text-sm mt-1">{error}</p>
+                <button
+                  onClick={fetchPaymentHistory}
+                  className="mt-3 inline-block text-red-600 text-sm font-medium hover:text-red-800 underline"
+                >
+                  Try Again
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Empty State */}
         {!loading && !error && transactions.length === 0 && (
-          <div className="text-center py-12">
-            <Wallet size={48} className="mx-auto text-gray-400 mb-3" />
-            <p className="text-gray-600 font-medium">No Payment History</p>
-            <p className="text-gray-500 text-sm mt-1">
+          <div className="text-center py-16">
+            <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <Wallet size={32} className="text-gray-400" />
+            </div>
+            <p className="text-gray-700 font-semibold text-lg">No Payment History</p>
+            <p className="text-gray-500 text-sm mt-2">
               Your payment transactions will appear here
             </p>
           </div>
@@ -160,78 +169,93 @@ const PaymentsTab = () => {
             {transactions.map((transaction) => (
               <div
                 key={transaction.id}
-                className="bg-white rounded-lg p-4 border border-gray-200"
+                className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-300"
               >
-                <div className="flex justify-between mb-3">
+                {/* Header Row */}
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="font-bold text-gray-800">
+                    <h3 className="font-bold text-gray-900 text-base">
                       {transaction.location}
                     </h3>
                     {transaction.address && (
-                      <p className="text-gray-500 text-xs mt-0.5">
+                      <p className="text-gray-500 text-xs mt-1 line-clamp-1">
                         {transaction.address}
                       </p>
                     )}
-                    <div className="flex items-center mt-2 text-gray-600 text-sm">
-                      <Calendar size={14} className="mr-1" />
-                      <span>{transaction.date}</span>
-                    </div>
-                    <div className="flex items-center mt-1 text-gray-600 text-sm">
-                      <Clock size={14} className="mr-1" />
-                      <span>{transaction.time}</span>
-                    </div>
-
-                    {/* Additional Info */}
-                    <div className="mt-2 pt-2 border-t border-gray-100">
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-gray-500">Vehicle:</span>
-                          <p className="text-gray-700 font-medium">
-                            {transaction.vehicle || "N/A"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">Payment:</span>
-                          <p className="text-gray-700 font-medium capitalize">
-                            {transaction.method?.replace("_", " ") || "N/A"}
-                          </p>
-                        </div>
-                        {transaction.transaction_id && (
-                          <div className="col-span-2">
-                            <span className="text-gray-500">
-                              Transaction ID:
-                            </span>
-                            <p className="text-gray-700 font-mono text-xs">
-                              {transaction.transaction_id}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
                   </div>
-
-                  <div className="text-right ml-4">
-                    <p className="font-bold text-gray-800 text-lg">
+                  <div className="ml-3 text-right">
+                    <p className="font-bold text-blue-600 text-lg">
                       Rp {transaction.amount}
                     </p>
-                    <div className="flex items-center justify-end mt-1">
-                      <CheckCircle size={14} className="text-green-600 mr-1" />
-                      <span className="text-green-600 text-sm capitalize">
-                        {transaction.status}
-                      </span>
-                    </div>
+                    <span className="inline-block mt-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                      {transaction.status}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-3">
-                  <button className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-md text-sm hover:bg-gray-50">
+                {/* Date & Time Row */}
+                <div className="flex gap-4 text-gray-600 text-sm mb-4 pb-4 border-b border-gray-100">
+                  <div className="flex items-center">
+                    <Calendar size={16} className="mr-2 text-blue-600" />
+                    <span>{transaction.date}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Clock size={16} className="mr-2 text-blue-600" />
+                    <span>{transaction.time}</span>
+                  </div>
+                </div>
+
+                {/* Additional Info Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-gray-500 text-xs font-medium mb-1">Vehicle</p>
+                    <p className="text-gray-900 font-semibold text-sm">
+                      {transaction.vehicle || "N/A"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-gray-500 text-xs font-medium mb-1">Payment Method</p>
+                    <p className="text-gray-900 font-semibold text-sm capitalize">
+                      {transaction.method?.replace("_", " ") || "N/A"}
+                    </p>
+                  </div>
+                  {transaction.spotNumber && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-gray-500 text-xs font-medium mb-1">Spot</p>
+                      <p className="text-gray-900 font-semibold text-sm">
+                        {transaction.spotNumber}
+                      </p>
+                    </div>
+                  )}
+                  {transaction.zoneType && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-gray-500 text-xs font-medium mb-1">Zone</p>
+                      <p className="text-gray-900 font-semibold text-sm capitalize">
+                        {transaction.zoneType}
+                      </p>
+                    </div>
+                  )}
+                  {transaction.transaction_id && (
+                    <div className="col-span-2 bg-gray-50 rounded-lg p-3">
+                      <p className="text-gray-500 text-xs font-medium mb-1">Transaction ID</p>
+                      <p className="text-gray-800 font-mono text-xs">
+                        {transaction.transaction_id}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors duration-200">
                     Receipt
                   </button>
                   <button
                     onClick={() => handleShowDetail(transaction)}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-md text-sm hover:bg-blue-700"
+                    className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2"
                   >
                     Details
+                    <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -240,7 +264,7 @@ const PaymentsTab = () => {
             {/* Refresh Button */}
             <button
               onClick={fetchPaymentHistory}
-              className="w-full bg-white border border-gray-300 text-blue-600 rounded-lg py-3 font-medium hover:bg-gray-50"
+              className="w-full bg-white border border-gray-300 text-blue-600 rounded-lg py-3 font-semibold hover:bg-blue-50 transition-colors duration-200 shadow-sm"
             >
               Refresh History
             </button>
