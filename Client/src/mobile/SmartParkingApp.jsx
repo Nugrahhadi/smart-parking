@@ -109,6 +109,10 @@ const SmartParkingApp = () => {
     }
   };
 
+  const handleNotificationsBack = () => {
+    setActiveTab("home");
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "vehicles":
@@ -120,7 +124,7 @@ const SmartParkingApp = () => {
       case "profile":
         return <ProfileTab />;
       case "notifications":
-        return <NotificationsScreen />;
+        return <NotificationsScreen onNotificationsChange={(count) => {}} onGoBack={handleNotificationsBack} />;
       case "settings":
         return <SettingsScreen />;
       case "help":

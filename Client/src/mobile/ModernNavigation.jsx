@@ -15,9 +15,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-const ModernNavigation = ({ activeTab, onTabChange, onLogout }) => {
+const ModernNavigation = ({ activeTab, onTabChange, onLogout, user, notificationCount = 0 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [notifications] = useState(3);
 
   const mainTabs = [
     {
@@ -57,7 +56,7 @@ const ModernNavigation = ({ activeTab, onTabChange, onLogout }) => {
       id: "notifications",
       icon: Bell,
       label: "Notifications",
-      badge: notifications,
+      badge: notificationCount,
     },
     { id: "settings", icon: Settings, label: "Settings" },
     { id: "help", icon: HelpCircle, label: "Help & Support" },
@@ -101,9 +100,9 @@ const ModernNavigation = ({ activeTab, onTabChange, onLogout }) => {
               className="relative p-2 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 transition-all duration-300 group"
             >
               <Bell className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors" />
-              {notifications > 0 && (
+              {notificationCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-lg animate-bounce">
-                  {notifications}
+                  {notificationCount}
                 </span>
               )}
             </button>
@@ -131,7 +130,7 @@ const ModernNavigation = ({ activeTab, onTabChange, onLogout }) => {
       >
         {/* Backdrop */}
         <div
-          className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-500 ${
+          className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-500 z-40 ${
             isMenuOpen ? "opacity-100" : "opacity-0"
           }`}
           onClick={toggleMenu}
@@ -139,11 +138,11 @@ const ModernNavigation = ({ activeTab, onTabChange, onLogout }) => {
 
         {/* Menu Panel */}
         <div
-          className={`absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-xl shadow-2xl transition-transform duration-500 ${
+          className={`absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-xl shadow-2xl transition-transform duration-500 z-50 flex flex-col ${
             isMenuOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
-          <div className="p-6 space-y-6">
+          <div className="pt-24 pb-28 px-6 space-y-6 overflow-y-auto flex-1">
             {/* Profile Card */}
             <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="flex items-center space-x-4">
@@ -151,7 +150,9 @@ const ModernNavigation = ({ activeTab, onTabChange, onLogout }) => {
                   <User className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">John Doe</h3>
+                  <h3 className="font-bold text-lg">
+                    {user?.username || "User"}
+                  </h3>
                   <p className="text-sm text-white/80">Premium Member</p>
                 </div>
               </div>
