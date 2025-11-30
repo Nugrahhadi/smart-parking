@@ -5,6 +5,7 @@ import {
   CheckCircle, XCircle, RefreshCw, Crown, Music, ShoppingBag, Coffee, Zap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ReservationDetailModal from "./ReservationDetailModal";
 
 const getZoneFromSlot = (slotNumber) => {
   if (!slotNumber) return "regular";
@@ -37,6 +38,7 @@ const ReservationHistoryScreen = () => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
+  const [selectedReservation, setSelectedReservation] = useState(null);
 
   const zoneIcons = { vip: Crown, entertainment: Music, shopping: ShoppingBag, dining: Coffee, electric: Zap, regular: Car };
   const zoneColors = {
@@ -172,7 +174,12 @@ const ReservationHistoryScreen = () => {
             <span className="ml-2">ID: {reservation.id}</span>
           </div>
           {reservation.status === "active" && (
-            <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">Lihat Detail</button>
+            <button 
+              onClick={() => setSelectedReservation(reservation)}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Lihat Detail
+            </button>
           )}
         </div>
       </div>
@@ -241,6 +248,13 @@ const ReservationHistoryScreen = () => {
           )}
         </div>
       </div>
+
+      {selectedReservation && (
+        <ReservationDetailModal 
+          reservation={selectedReservation} 
+          onClose={() => setSelectedReservation(null)} 
+        />
+      )}
     </div>
   );
 };

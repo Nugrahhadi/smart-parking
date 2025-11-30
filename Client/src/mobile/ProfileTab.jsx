@@ -88,7 +88,7 @@ const ProfileTab = () => {
   const { user, statistics, vehicles, recentReservations } = profile;
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-blue-50 py-4 px-4 overflow-y-auto">
+    <div className="flex flex-col h-full bg-gradient-to-br from-gray-50 to-blue-50 py-4 px-4 overflow-y-auto pb-20">
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 mb-4 text-white shadow-lg">
         <div className="flex items-center mb-4">
           <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center mr-4 border-2 border-white/30">
