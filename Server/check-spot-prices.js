@@ -71,7 +71,9 @@ db.connect((err) => {
           console.log("🔍 Reservation #45 Details:\n");
           console.log(`  Spot: ${reservation.spot_number}`);
           console.log(`  Zone: ${reservation.zone_type}`);
-          console.log(`  Price per hour (DB): Rp ${reservation.price_per_hour}`);
+          console.log(
+            `  Price per hour (DB): Rp ${reservation.price_per_hour}`
+          );
           console.log(`  Duration: ${reservation.duration_hours} hours`);
           console.log(
             `  Expected Total: Rp ${

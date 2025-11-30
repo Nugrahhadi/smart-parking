@@ -157,7 +157,7 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
               <div>
                 <p className="text-gray-600 text-sm mb-1">Date</p>
                 <p className="font-semibold text-gray-900">
-                  {reservation.reservation_date 
+                  {reservation.reservation_date
                     ? formatDate(reservation.reservation_date)
                     : "N/A"}
                 </p>
@@ -177,7 +177,10 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
                 </div>
               </div>
               <div className="text-sm text-gray-600 pt-2 border-t border-gray-300">
-                Duration: <span className="font-semibold text-gray-900">{reservation.duration || 1} jam</span>
+                Duration:{" "}
+                <span className="font-semibold text-gray-900">
+                  {reservation.duration || 1} jam
+                </span>
               </div>
             </div>
           </div>
