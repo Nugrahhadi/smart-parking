@@ -11,10 +11,12 @@ import {
   X,
   Info,
 } from "lucide-react";
+import AdminSidebar from "./components/AdminSidebar";
 
 const AdminSystemConfig = () => {
-  // Show placeholder message since backend API is not implemented yet
-  const [showPlaceholder] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Configuration state
+  const [showPlaceholder] = useState(false);
 
   if (showPlaceholder) {
     return (
@@ -203,7 +205,11 @@ const AdminSystemConfig = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar would be here, but we'll reuse the one from AdminDashboard */}
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeTab="settings"
+      />
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">

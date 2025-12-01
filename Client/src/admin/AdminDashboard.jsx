@@ -27,10 +27,12 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import AdminSidebar from "./components/AdminSidebar";
 
 const API_URL = "http://localhost:5000/api";
 
 const AdminDashboard = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentDate] = useState(
     new Date().toLocaleDateString("en-US", {
       weekday: "long",
@@ -51,10 +53,11 @@ const AdminDashboard = () => {
     users_growth: 0,
   });
 
-  const [parkingData, setParkingData] = useState([]);
   const [parkingLocations, setParkingLocations] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDateFilter, setSelectedDateFilter] = useState("today");
 
   // Get auth token from localStorage
   const getAuthToken = () => {
@@ -80,24 +83,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fetch chart data
-  const fetchChartData = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_URL}/admin/dashboard/chart`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const result = await response.json();
-      if (result.success) {
-        setParkingData(result.data);
-      }
-    } catch (err) {
-      console.error("Error fetching chart data:", err);
-    }
-  };
-
   // Fetch parking locations
   const fetchLocations = async () => {
     try {
@@ -116,11 +101,33 @@ const AdminDashboard = () => {
     }
   };
 
+  // Fetch transactions for revenue calculation
+  const fetchTransactionsData = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/admin/transactions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json();
+      if (result.success) {
+        setTransactions(result.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching transactions:", err);
+    }
+  };
+
   // Load all data
   const loadData = async () => {
     setLoading(true);
     setError(null);
-    await Promise.all([fetchMetrics(), fetchChartData(), fetchLocations()]);
+    await Promise.all([
+      fetchMetrics(),
+      fetchLocations(),
+      fetchTransactionsData(),
+    ]);
     setLoading(false);
   };
 
@@ -144,10 +151,15 @@ const AdminDashboard = () => {
     return `${sign}${value}%`;
   };
 
+  // Calculate real-time revenue from transactions
+  const calculatedRevenue = transactions
+    .filter((t) => t.status === "active" || t.status === "completed")
+    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
   const statistics = [
     {
       title: "Total Revenue",
-      value: formatCurrency(metrics.total_revenue || 0),
+      value: formatCurrency(calculatedRevenue || metrics.total_revenue || 0),
       change: formatPercentage(metrics.revenue_growth || 0),
       isPositive: (metrics.revenue_growth || 0) >= 0,
     },
@@ -182,62 +194,20 @@ const AdminDashboard = () => {
   );
   const availableSlots = totalSlots - occupiedSlots;
 
+  // Generate parking occupancy chart data from locations
+  const chartData = parkingLocations.map((location) => ({
+    name: location.name,
+    occupied: location.occupied_slots || 0,
+    available: (location.total_slots || 0) - (location.occupied_slots || 0),
+  }));
+
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-64 bg-white shadow-md">
-        <div className="p-4 border-b">
-          <h1 className="text-xl font-bold text-blue-600">Smart Parking</h1>
-          <p className="text-sm text-gray-600">Admin Dashboard</p>
-        </div>
-
-        <div className="p-4">
-          <div className="flex flex-col space-y-1">
-            <a
-              href="/admin"
-              className="flex items-center p-2 rounded-md bg-blue-50 text-blue-600 font-medium"
-            >
-              <BarChart3 size={20} className="mr-3" />
-              Dashboard
-            </a>
-            <a
-              href="/admin/locations"
-              className="flex items-center p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            >
-              <MapPin size={20} className="mr-3" />
-              Parking Locations
-            </a>
-            <a
-              href="/admin/users"
-              className="flex items-center p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            >
-              <Users size={20} className="mr-3" />
-              Users
-            </a>
-            <a
-              href="/admin/transactions"
-              className="flex items-center p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            >
-              <CreditCard size={20} className="mr-3" />
-              Transactions
-            </a>
-            <a
-              href="/admin/sensors"
-              className="flex items-center p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            >
-              <Cpu size={20} className="mr-3" />
-              Sensors
-            </a>
-            <a
-              href="/admin/config"
-              className="flex items-center p-2 rounded-md text-gray-700 hover:bg-gray-100"
-            >
-              <Settings size={20} className="mr-3" />
-              Settings
-            </a>
-          </div>
-        </div>
-      </div>
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeTab="dashboard"
+      />
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
@@ -327,35 +297,84 @@ const AdminDashboard = () => {
               <div className="bg-white p-4 rounded-lg shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-gray-700">Parking Occupancy</h3>
-                  <div className="flex items-center text-sm font-medium text-gray-600">
-                    <Calendar size={16} className="mr-1" />
-                    Today
-                    <ChevronDown size={16} className="ml-1" />
+                  <div className="relative">
+                    <button
+                      className="flex items-center text-sm font-medium text-gray-600 hover:text-gray-800 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-md transition"
+                      onClick={() => {
+                        const menu =
+                          document.getElementById("date-filter-menu");
+                        menu.classList.toggle("hidden");
+                      }}
+                    >
+                      <Calendar size={16} className="mr-1" />
+                      {selectedDateFilter.charAt(0).toUpperCase() +
+                        selectedDateFilter.slice(1)}
+                      <ChevronDown size={16} className="ml-1" />
+                    </button>
+                    <div
+                      id="date-filter-menu"
+                      className="hidden absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-10"
+                    >
+                      {[
+                        { value: "today", label: "Today" },
+                        { value: "yesterday", label: "Yesterday" },
+                        { value: "week", label: "This Week" },
+                        { value: "month", label: "This Month" },
+                        { value: "all", label: "All Time" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setSelectedDateFilter(option.value);
+                            document
+                              .getElementById("date-filter-menu")
+                              .classList.add("hidden");
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm ${
+                            selectedDateFilter === option.value
+                              ? "bg-blue-100 text-blue-700 font-medium"
+                              : "text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={parkingData}
-                      margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                      <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Bar
-                        dataKey="occupied"
-                        fill="#3B82F6"
-                        radius={[4, 4, 0, 0]}
-                      />
-                      <Bar
-                        dataKey="available"
-                        fill="#E5E7EB"
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {chartData && chartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis axisLine={false} tickLine={false} />
+                        <Tooltip />
+                        <Bar
+                          dataKey="occupied"
+                          fill="#3B82F6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="available"
+                          fill="#E5E7EB"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-500">Loading parking data...</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-center mt-4">

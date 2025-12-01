@@ -144,3 +144,26 @@ export const formatTime = (dateString) => {
     minute: "2-digit",
   });
 };
+
+// Format duration between two times
+export const formatDuration = (startTime, endTime) => {
+  if (!startTime || !endTime) return "N/A";
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  const diffMs = Math.abs(end - start);
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (diffHours > 0) {
+    return `${diffHours}h ${diffMinutes}m`;
+  }
+  return `${diffMinutes}m`;
+};
+
+// Format time range
+export const formatTimeRange = (startTime, endTime) => {
+  if (!startTime || !endTime) return "N/A";
+  return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+};

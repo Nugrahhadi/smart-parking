@@ -14,12 +14,29 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { fetchLocations, formatCurrency } from "../utils/api";
+import {
+  fetchLocations,
+  formatCurrency,
+  createLocation,
+  updateLocation,
+  deleteLocation,
+} from "../utils/api";
+import AdminSidebar from "./components/AdminSidebar";
 
 const ParkingLocations = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    address: "",
+    status: "active",
+    price_per_hour: 0,
+  });
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   useEffect(() => {
     loadLocations();
@@ -28,14 +45,68 @@ const ParkingLocations = () => {
   const loadLocations = async () => {
     try {
       setLoading(true);
-      const data = await fetchLocations();
-      setLocations(data);
+      const response = await fetchLocations();
+      setLocations(response.data || []);
       setError(null);
     } catch (err) {
       console.error("Error loading locations:", err);
       setError("Failed to load locations");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddLocation = () => {
+    setEditingLocation(null);
+    setFormData({
+      name: "",
+      address: "",
+      status: "active",
+      price_per_hour: 0,
+    });
+    setShowModal(true);
+  };
+
+  const handleEditLocation = (location) => {
+    setEditingLocation(location);
+    setFormData({
+      name: location.name,
+      address: location.address,
+      status: location.status,
+      price_per_hour: location.hourly_rate || 0,
+    });
+    setShowModal(true);
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingLocation) {
+        // Update existing location
+        await updateLocation(editingLocation.id, formData);
+        alert("Location updated successfully");
+      } else {
+        // Create new location
+        await createLocation(formData);
+        alert("Location created successfully");
+      }
+      setShowModal(false);
+      loadLocations();
+    } catch (err) {
+      console.error("Error:", err);
+      alert(err.message || "Failed to save location");
+    }
+  };
+
+  const handleDeleteLocation = async (id) => {
+    try {
+      await deleteLocation(id);
+      alert("Location deleted successfully");
+      loadLocations();
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error("Error:", err);
+      alert(err.message || "Failed to delete location");
     }
   };
 
@@ -57,7 +128,11 @@ const ParkingLocations = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar would be here, but we'll reuse the one from AdminDashboard */}
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeTab="locations"
+      />
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
@@ -100,7 +175,10 @@ const ParkingLocations = () => {
               <Download size={16} className="mr-2" />
               Export
             </button>
-            <button className="px-3 py-2 bg-blue-600 text-white rounded-md flex items-center text-sm">
+            <button
+              onClick={handleAddLocation}
+              className="px-3 py-2 bg-blue-600 text-white rounded-md flex items-center text-sm hover:bg-blue-700"
+            >
               <Plus size={16} className="mr-2" />
               Add Location
             </button>
@@ -149,11 +227,11 @@ const ParkingLocations = () => {
                       <td className="py-3 px-4">
                         <div>
                           <span className="text-green-600 font-medium">
-                            {availableSlots}
+                            {availableSlots || 0}
                           </span>
                           <span className="text-gray-500">
                             {" "}
-                            / {location.total_slots}
+                            / {location.total_slots || 0}
                           </span>
                         </div>
                       </td>
@@ -186,13 +264,19 @@ const ParkingLocations = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-2">
-                          <button className="p-1 hover:bg-gray-100 rounded-full">
+                          <button
+                            onClick={() => handleEditLocation(location)}
+                            className="p-1 hover:bg-gray-100 rounded-full"
+                          >
                             <Edit size={16} className="text-blue-500" />
                           </button>
                           <button className="p-1 hover:bg-gray-100 rounded-full">
                             <BarChart3 size={16} className="text-purple-500" />
                           </button>
-                          <button className="p-1 hover:bg-gray-100 rounded-full">
+                          <button
+                            onClick={() => setDeleteConfirm(location.id)}
+                            className="p-1 hover:bg-gray-100 rounded-full"
+                          >
                             <Trash size={16} className="text-red-500" />
                           </button>
                         </div>
@@ -225,6 +309,131 @@ const ParkingLocations = () => {
 
         {/* Location Details (Hidden by default, would be shown when a location is clicked) */}
         {/* This would be implemented with a state to show/hide and the selected location details */}
+
+        {/* Add/Edit Location Modal */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-96 max-h-screen overflow-y-auto">
+              <h3 className="text-lg font-bold mb-4">
+                {editingLocation ? "Edit Location" : "Add New Location"}
+              </h3>
+
+              <form onSubmit={handleFormSubmit}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Address *
+                    </label>
+                    <textarea
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      rows="3"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({ ...formData, status: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="active">Active</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hourly Rate (Rp) *
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.price_per_hour}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          price_per_hour: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      required
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex space-x-2 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    {editingLocation ? "Update" : "Create"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-80">
+              <h3 className="text-lg font-bold mb-2">Delete Location</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete this location? This action
+                cannot be undone.
+              </p>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteLocation(deleteConfirm)}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

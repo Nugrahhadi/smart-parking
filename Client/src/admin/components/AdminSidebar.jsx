@@ -6,20 +6,37 @@ import {
   CreditCard,
   MapPin,
   LogOut,
-  ChevronDown,
   Home,
-  FileText,
+  Cpu,
 } from "lucide-react";
 
-const AdminSidebar = ({ open, onClose, activeTab, setActiveTab }) => {
+const AdminSidebar = ({ open, onClose, activeTab }) => {
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "locations", label: "Locations", icon: MapPin },
-    { id: "users", label: "Users", icon: Users },
-    { id: "transactions", label: "Transactions", icon: CreditCard },
-    { id: "reports", label: "Reports", icon: FileText },
-    { id: "settings", label: "Settings", icon: Settings },
+    { id: "dashboard", label: "Dashboard", icon: Home, path: "/admin" },
+    {
+      id: "locations",
+      label: "Parking Locations",
+      icon: MapPin,
+      path: "/admin/locations",
+    },
+    { id: "users", label: "Users", icon: Users, path: "/admin/users" },
+    {
+      id: "transactions",
+      label: "Transactions",
+      icon: CreditCard,
+      path: "/admin/transactions",
+    },
+    { id: "sensors", label: "Sensors", icon: Cpu, path: "/admin/sensors" },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: Settings,
+      path: "/admin/config",
+    },
   ];
+
+  // Get admin name from localStorage
+  const adminName = localStorage.getItem("adminName") || "Admin";
 
   return (
     <>
@@ -42,7 +59,23 @@ const AdminSidebar = ({ open, onClose, activeTab, setActiveTab }) => {
           <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
             <BarChart3 className="w-6 h-6 text-blue-700" />
           </div>
-          <h2 className="text-xl font-bold">ParkFlow</h2>
+          <div>
+            <h2 className="text-xl font-bold">Smart Parking</h2>
+            <p className="text-xs text-blue-200">Admin Dashboard</p>
+          </div>
+        </div>
+
+        {/* Admin Info */}
+        <div className="p-6 border-b border-blue-600">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-white font-medium">{adminName}</p>
+              <p className="text-xs text-blue-200">Administrator</p>
+            </div>
+          </div>
         </div>
 
         {/* Menu */}
@@ -52,21 +85,19 @@ const AdminSidebar = ({ open, onClose, activeTab, setActiveTab }) => {
             const isActive = activeTab === item.id;
 
             return (
-              <button
+              <a
                 key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  onClose?.();
-                }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+                href={item.path}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition cursor-pointer ${
                   isActive
                     ? "bg-white bg-opacity-20 text-white"
                     : "text-blue-100 hover:bg-white hover:bg-opacity-10"
                 }`}
               >
-                <Icon className="w-5 h-5" />
+                <Icon className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">{item.label}</span>
-              </button>
+              </a>
             );
           })}
         </nav>

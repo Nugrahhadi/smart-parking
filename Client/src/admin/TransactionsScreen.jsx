@@ -18,9 +18,13 @@ import {
   formatCurrency,
   formatDate,
   formatTime,
+  formatDuration,
+  formatTimeRange,
 } from "../utils/api";
+import AdminSidebar from "./components/AdminSidebar";
 
 const TransactionsScreen = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,8 +37,8 @@ const TransactionsScreen = () => {
   const loadTransactions = async () => {
     try {
       setLoading(true);
-      const data = await fetchTransactions();
-      setTransactions(data);
+      const response = await fetchTransactions();
+      setTransactions(response.data || []);
       setError(null);
     } catch (err) {
       console.error("Error loading transactions:", err);
@@ -82,15 +86,23 @@ const TransactionsScreen = () => {
 
   // Calculate summary stats
   const totalTransactions = transactions.length;
-  const totalRevenue = transactions
-    .filter((t) => t.status === "completed")
-    .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+  const completedTransactions = transactions.filter(
+    (t) => t.status === "active" || t.status === "completed"
+  );
+  const totalRevenue = completedTransactions.reduce(
+    (sum, t) => sum + parseFloat(t.amount || 0),
+    0
+  );
   const avgAmount =
-    totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+    completedTransactions.length > 0
+      ? totalRevenue / completedTransactions.length
+      : 0;
   const refundRate =
     totalTransactions > 0
       ? (
-          (transactions.filter((t) => t.status === "refunded").length /
+          (transactions.filter(
+            (t) => t.status === "refunded" || t.status === "pending"
+          ).length /
             totalTransactions) *
           100
         ).toFixed(1)
@@ -114,7 +126,11 @@ const TransactionsScreen = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar would be here, but we'll reuse the one from AdminDashboard */}
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeTab="transactions"
+      />
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
@@ -226,9 +242,9 @@ const TransactionsScreen = () => {
                       <div className="font-medium">{transaction.id}</div>
                     </td>
                     <td className="py-3 px-4">
-                      <div>{formatDate(transaction.check_in_time)}</div>
+                      <div>{formatDate(transaction.startTime)}</div>
                       <div className="text-sm text-gray-500">
-                        {formatTime(transaction.check_in_time)}
+                        {formatTime(transaction.startTime)}
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -244,7 +260,18 @@ const TransactionsScreen = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4">
-                      {transaction.duration || "N/A"}
+                      <div>
+                        {formatDuration(
+                          transaction.startTime,
+                          transaction.endTime
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {formatTimeRange(
+                          transaction.startTime,
+                          transaction.endTime
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4 font-medium">
                       {formatCurrency(transaction.amount)}
@@ -311,8 +338,8 @@ const TransactionsScreen = () => {
                       {renderStatusBadge(selectedTransaction.status)}
                     </div>
                     <p className="text-gray-600 mt-1">
-                      {formatDate(selectedTransaction.check_in_time)},{" "}
-                      {formatTime(selectedTransaction.check_in_time)}
+                      {formatDate(selectedTransaction.startTime)},{" "}
+                      {formatTime(selectedTransaction.startTime)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -346,44 +373,48 @@ const TransactionsScreen = () => {
                 </div>
 
                 <div className="border-t border-gray-200 pt-4 mb-4">
-                  <h4 className="font-medium mb-2">Transaction Details</h4>
+                  <h4 className="font-medium mb-3">Transaction Details</h4>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-500 text-sm">Payment Method</p>
-                      <p className="font-medium flex items-center">
+                      <p className="font-medium flex items-center mt-1">
                         <CreditCard size={16} className="mr-2 text-gray-500" />
-                        {selectedTransaction.payment_method || "N/A"}
+                        {selectedTransaction.payment_method || "E-Wallet"}
                       </p>
                     </div>
 
                     <div>
                       <p className="text-gray-500 text-sm">Duration</p>
-                      <p className="font-medium flex items-center">
+                      <p className="font-medium flex items-center mt-1">
                         <Clock size={16} className="mr-2 text-gray-500" />
-                        {selectedTransaction.duration || "N/A"}
+                        {formatDuration(
+                          selectedTransaction.startTime,
+                          selectedTransaction.endTime
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {formatTimeRange(
+                          selectedTransaction.startTime,
+                          selectedTransaction.endTime
+                        )}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex space-x-2">
-                  <button className="flex-1 py-2 border border-blue-600 text-blue-600 rounded-md flex items-center justify-center">
+                  <button className="flex-1 py-2 border border-blue-600 text-blue-600 rounded-md flex items-center justify-center hover:bg-blue-50">
                     <Download size={16} className="mr-2" />
                     Download Receipt
                   </button>
 
                   {selectedTransaction.status === "completed" ? (
-                    <button className="flex-1 py-2 border border-red-600 text-red-600 rounded-md flex items-center justify-center">
+                    <button className="flex-1 py-2 border border-red-600 text-red-600 rounded-md flex items-center justify-center hover:bg-red-50">
                       <CreditCard size={16} className="mr-2" />
                       Process Refund
                     </button>
                   ) : null}
-
-                  <button className="flex-1 py-2 bg-blue-600 text-white rounded-md flex items-center justify-center">
-                    <ExternalLink size={16} className="mr-2" />
-                    View Details
-                  </button>
                 </div>
               </div>
             </div>
