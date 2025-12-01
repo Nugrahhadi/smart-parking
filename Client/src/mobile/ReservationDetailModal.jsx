@@ -213,32 +213,62 @@ const ReservationDetailModal = ({ reservation, onClose }) => {
           {/* Payment Info */}
           <div>
             <div className="flex items-center text-gray-700 mb-3">
-              <DollarSign size={20} className="mr-2 text-green-600" />
+              <DollarSign size={20} className={`mr-2 ${
+                reservation.status === "cancelled"
+                  ? "text-red-600"
+                  : "text-green-600"
+              }`} />
               <h3 className="font-bold text-lg">Payment</h3>
             </div>
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 border border-green-200">
+            <div className={`rounded-xl p-4 border ${
+              reservation.status === "cancelled"
+                ? "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
+                : "bg-gradient-to-r from-green-50 to-blue-50 border-green-200"
+            }`}>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-700 font-medium">Total Amount</span>
-                <span className="text-2xl font-bold text-green-700">
+                <span className={`font-medium ${
+                  reservation.status === "cancelled"
+                    ? "text-red-700"
+                    : "text-gray-700"
+                }`}>Total Amount</span>
+                <span className={`text-2xl font-bold ${
+                  reservation.status === "cancelled"
+                    ? "text-red-700"
+                    : "text-green-700"
+                }`}>
                   {formatCurrency(reservation.totalAmount)}
                 </span>
               </div>
               {reservation.paymentStatus && (
-                <div className="flex items-center justify-between pt-2 border-t border-green-200">
+                <div className={`flex items-center justify-between pt-2 border-t ${
+                  reservation.status === "cancelled"
+                    ? "border-red-200"
+                    : "border-green-200"
+                }`}>
                   <div className="flex items-center">
-                    <CreditCard size={16} className="mr-2 text-gray-600" />
-                    <span className="text-sm text-gray-600">
+                    <CreditCard size={16} className={`mr-2 ${
+                      reservation.status === "cancelled"
+                        ? "text-red-600"
+                        : "text-gray-600"
+                    }`} />
+                    <span className={`text-sm ${
+                      reservation.status === "cancelled"
+                        ? "text-red-700"
+                        : "text-gray-600"
+                    }`}>
                       Payment Status
                     </span>
                   </div>
                   <span
                     className={`text-sm font-semibold capitalize ${
-                      reservation.paymentStatus === "completed"
+                      reservation.status === "cancelled"
+                        ? "text-red-700"
+                        : reservation.paymentStatus === "completed"
                         ? "text-green-700"
                         : "text-yellow-700"
                     }`}
                   >
-                    {reservation.paymentStatus}
+                    {reservation.status === "cancelled" ? "Cancelled" : reservation.paymentStatus}
                   </span>
                 </div>
               )}

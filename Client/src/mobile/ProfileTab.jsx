@@ -24,9 +24,36 @@ const ProfileTab = () => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const data = await userAPI.getProfile();
-        setProfile(data);
-        console.log("✅ Profile loaded:", data);
+        const token = localStorage.getItem("token");
+        
+        // Fetch profile data
+        const profileData = await userAPI.getProfile();
+        
+        // Fetch all reservations to calculate accurate total spent
+        let allReservations = [];
+        if (token) {
+          try {
+            const response = await fetch("http://localhost:5000/api/reservations/my-reservations", {
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            });
+            if (response.ok) {
+              allReservations = await response.json();
+            }
+          } catch (err) {
+            console.error("Error fetching all reservations:", err);
+          }
+        }
+
+        // Calculate total spent from active and completed reservations only
+        const totalSpent = allReservations
+          .filter((r) => r.status && (r.status.toLowerCase().includes("active") || r.status.toLowerCase().includes("ongoing") || r.status.toLowerCase().includes("completed") || r.status.toLowerCase().includes("selesai")))
+          .reduce((sum, r) => sum + (parseFloat(r.total_cost) || 0), 0);
+
+        profileData.statistics.totalSpent = totalSpent;
+        profileData.statistics.totalReservations = allReservations.filter(r => !r.status || !r.status.toLowerCase().includes("cancelled")).length;
+
+        setProfile(profileData);
+        console.log("✅ Profile loaded:", profileData);
       } catch (err) {
         console.error("❌ Error loading profile:", err);
         setError(err?.response?.data?.message || "Failed to load profile");

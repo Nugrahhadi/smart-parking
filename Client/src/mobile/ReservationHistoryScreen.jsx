@@ -55,6 +55,8 @@ const ReservationHistoryScreen = ({ onNavigateToHome }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("active");
   const [selectedReservation, setSelectedReservation] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
 
   const zoneIcons = { vip: Crown, entertainment: Music, shopping: ShoppingBag, dining: Coffee, electric: Zap, regular: Car };
   const zoneColors = {
@@ -141,6 +143,36 @@ const ReservationHistoryScreen = ({ onNavigateToHome }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const cancelReservation = async (reservationId) => {
+    try {
+      setCancellingId(reservationId);
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const response = await fetch(`http://localhost:5000/api/reservations/${reservationId}/cancel`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled", paymentStatus: "cancelled" }),
+      });
+
+      if (response.ok) {
+        setReservations((prevReservations) =>
+          prevReservations.map((r) =>
+            r.id === reservationId 
+              ? { ...r, status: "cancelled", paymentStatus: "cancelled" } 
+              : r
+          )
+        );
+        setSelectedReservation(null);
+        setConfirmCancelId(null);
+      }
+    } catch (error) {
+      console.error("Error cancelling reservation:", error);
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   const formatDateTime = (dateObj) => {
     try {
@@ -268,15 +300,60 @@ const ReservationHistoryScreen = ({ onNavigateToHome }) => {
                <Clock className="text-gray-500 mr-2" size={18} />}
               <span>ID: {reservation.id}</span>
             </div>
-            {reservation.status === "active" && (
-              <button
-                type="button"
-                onClick={() => setSelectedReservation(reservation)}
-                className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
-              >
-                Lihat Detail
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {reservation.status === "active" && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmCancelId(reservation.id)}
+                  className="text-red-600 hover:text-red-700 hover:underline font-medium"
+                >
+                  Batalkan
+                </button>
+              )}
+              {(reservation.status === "active" || reservation.status === "completed" || reservation.status === "cancelled") && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedReservation(reservation)}
+                  className="text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                >
+                  Lihat Detail
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const CancelConfirmationModal = ({ reservationId, onConfirm, onCancel }) => {
+    if (!reservationId) return null;
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 mx-auto mb-4">
+            <XCircle className="text-red-600" size={24} />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">Batalkan Reservasi?</h3>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            Apakah Anda yakin ingin membatalkan reservasi ini? Tindakan ini tidak dapat dibatalkan.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 font-medium hover:bg-gray-50"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={cancellingId === reservationId}
+              className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              {cancellingId === reservationId ? "Membatalkan..." : "Batalkan Reservasi"}
+            </button>
           </div>
         </div>
       </div>
@@ -349,6 +426,12 @@ const ReservationHistoryScreen = ({ onNavigateToHome }) => {
           onClose={() => setSelectedReservation(null)}
         />
       )}
+
+      <CancelConfirmationModal
+        reservationId={confirmCancelId}
+        onConfirm={() => cancelReservation(confirmCancelId)}
+        onCancel={() => setConfirmCancelId(null)}
+      />
     </div>
   );
 };
