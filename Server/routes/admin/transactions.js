@@ -7,7 +7,7 @@ const db = require("../../config/database");
  * GET /api/admin/transactions
  * Fetch all parking transactions with filtering and sorting
  */
-router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.get("/", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const {
       page = 1,
@@ -32,24 +32,18 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
 
     let transactionsQuery = `
       SELECT 
-        r.id as transaction_id,
+        r.id,
         r.user_id,
-        v.license_plate as vehicle_plate,
+        u.full_name as user_name,
+        u.email as user_email,
         pl.name as location_name,
-        r.start_time as time_in,
-        r.end_time as time_out,
-        CEIL((TIMESTAMPDIFF(MINUTE, r.start_time, r.end_time) / 60)) as duration_hours,
-        r.total_amount as total_fee,
-        p.payment_status,
-        p.payment_method,
-        r.status as reservation_status,
-        r.created_at,
-        u.full_name,
-        u.email
+        r.start_time as check_in_time,
+        r.end_time as check_out_time,
+        r.total_amount as amount,
+        r.status,
+        r.created_at
       FROM reservations r
-      LEFT JOIN vehicles v ON r.vehicle_id = v.id
       LEFT JOIN parking_locations pl ON r.location_id = pl.id
-      LEFT JOIN payments p ON r.id = p.reservation_id
       LEFT JOIN users u ON r.user_id = u.id
       WHERE 1=1
     `;
@@ -73,7 +67,7 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
     }
 
     if (status) {
-      transactionsQuery += ` AND p.payment_status = ?`;
+      transactionsQuery += ` AND r.status = ?`;
       params.push(status);
     }
 
@@ -81,7 +75,6 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
     const allowedSortBy = [
       "r.created_at",
       "r.total_amount",
-      "duration_hours",
       "u.full_name",
       "pl.name",
     ];
@@ -95,61 +88,34 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
 
     params.push(parseInt(limit), offset);
 
-    db.query(transactionsQuery, params, (err, results) => {
-      if (err) {
-        console.error("❌ Query error:", err);
-        return res.status(500).json({ error: "Failed to fetch transactions" });
-      }
+    const [transRes, countRes] = await Promise.all([
+      db.query(transactionsQuery, params),
+      db.query("SELECT COUNT(*) as total FROM reservations WHERE 1=1" + (location_id ? " AND location_id = ?" : "") + (startDate ? " AND DATE(start_time) >= ?" : "") + (endDate ? " AND DATE(start_time) <= ?" : "") + (status ? " AND status = ?" : ""), 
+        [location_id, startDate, endDate, status].filter(Boolean)
+      ),
+    ]);
 
-      // Get total count for pagination
-      let countQuery = `
-        SELECT COUNT(*) as total FROM reservations r
-        WHERE 1=1
-      `;
-      let countParams = [];
+    if (!transRes.success || !countRes.success) {
+      throw new Error("Failed to fetch transactions");
+    }
 
-      if (location_id) {
-        countQuery += ` AND r.location_id = ?`;
-        countParams.push(location_id);
-      }
+    const total = countRes.data[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
 
-      if (startDate) {
-        countQuery += ` AND DATE(r.start_time) >= ?`;
-        countParams.push(startDate);
-      }
-
-      if (endDate) {
-        countQuery += ` AND DATE(r.start_time) <= ?`;
-        countParams.push(endDate);
-      }
-
-      db.query(countQuery, countParams, (err, countResults) => {
-        if (err) {
-          console.error("❌ Count error:", err);
-          return res
-            .status(500)
-            .json({ error: "Failed to count transactions" });
-        }
-
-        const total = countResults[0].total;
-        const totalPages = Math.ceil(total / limit);
-
-        console.log("✅ Fetched", results.length, "transactions");
-        res.json({
-          success: true,
-          data: results,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total,
-            totalPages,
-          },
-        });
-      });
+    console.log("✅ Fetched", transRes.data.length, "transactions");
+    res.json({
+      success: true,
+      data: transRes.data,
+      pagination: {
+        current_page: parseInt(page),
+        per_page: parseInt(limit),
+        total_pages: totalPages,
+        total: total,
+      },
     });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -157,61 +123,43 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
  * GET /api/admin/transactions/:id
  * Fetch single transaction details
  */
-router.get("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.get("/:id", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`💳 Fetching transaction ${id}...`);
 
     const transactionQuery = `
       SELECT 
-        r.id as transaction_id,
+        r.id,
         r.user_id,
-        v.license_plate as vehicle_plate,
-        v.vehicle_type,
+        u.full_name as user_name,
+        u.email as user_email,
         pl.name as location_name,
-        pl.address as location_address,
-        ps.spot_number,
-        ps.zone_type,
-        r.start_time as time_in,
-        r.end_time as time_out,
-        CEIL((TIMESTAMPDIFF(MINUTE, r.start_time, r.end_time) / 60)) as duration_hours,
-        r.total_amount as total_fee,
-        p.payment_status,
-        p.payment_method,
-        p.transaction_id as payment_transaction_id,
-        r.status as reservation_status,
-        r.created_at,
-        u.full_name,
-        u.email,
-        u.phone_number
+        r.start_time as check_in_time,
+        r.end_time as check_out_time,
+        r.total_amount as amount,
+        r.status,
+        r.created_at
       FROM reservations r
-      LEFT JOIN vehicles v ON r.vehicle_id = v.id
       LEFT JOIN parking_locations pl ON r.location_id = pl.id
-      LEFT JOIN parking_spots ps ON r.spot_id = ps.id
-      LEFT JOIN payments p ON r.id = p.reservation_id
       LEFT JOIN users u ON r.user_id = u.id
       WHERE r.id = ?
     `;
 
-    db.query(transactionQuery, [id], (err, results) => {
-      if (err) {
-        console.error("❌ Query error:", err);
-        return res.status(500).json({ error: "Failed to fetch transaction" });
-      }
+    const transRes = await db.queryOne(transactionQuery, [id]);
+    
+    if (!transRes.success || !transRes.data) {
+      return res.status(404).json({ success: false, error: "Transaction not found" });
+    }
 
-      if (results.length === 0) {
-        return res.status(404).json({ error: "Transaction not found" });
-      }
-
-      console.log("✅ Transaction fetched successfully");
-      res.json({
-        success: true,
-        data: results[0],
-      });
+    console.log("✅ Transaction fetched successfully");
+    res.json({
+      success: true,
+      data: transRes.data,
     });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -223,41 +171,33 @@ router.get(
   "/stats/summary",
   authenticateToken,
   authorizeRole("admin"),
-  (req, res) => {
+  async (req, res) => {
     try {
       console.log("📊 Fetching transaction summary...");
 
       const summaryQuery = `
       SELECT 
         COUNT(*) as total_transactions,
-        SUM(r.total_amount) as total_revenue,
-        AVG(r.total_amount) as avg_transaction_value,
-        COUNT(DISTINCT r.user_id) as unique_users,
-        COUNT(DISTINCT r.location_id) as locations_used,
-        SUM(CEIL((TIMESTAMPDIFF(MINUTE, r.start_time, r.end_time) / 60))) as total_hours_parked,
-        COUNT(CASE WHEN p.payment_status = 'completed' THEN 1 END) as completed_payments,
-        COUNT(CASE WHEN p.payment_status = 'pending' THEN 1 END) as pending_payments
+        COALESCE(SUM(r.total_amount), 0) as total_revenue,
+        COALESCE(AVG(r.total_amount), 0) as avg_transaction_value,
+        COUNT(DISTINCT r.user_id) as unique_users
       FROM reservations r
-      LEFT JOIN payments p ON r.id = p.reservation_id
-    `;
+      `;
 
-      db.query(summaryQuery, (err, results) => {
-        if (err) {
-          console.error("❌ Query error:", err);
-          return res
-            .status(500)
-            .json({ error: "Failed to fetch transaction summary" });
-        }
+      const summRes = await db.queryOne(summaryQuery, []);
+      
+      if (!summRes.success) {
+        throw new Error("Failed to fetch transaction summary");
+      }
 
-        console.log("✅ Summary fetched successfully");
-        res.json({
-          success: true,
-          data: results[0],
-        });
+      console.log("✅ Summary fetched successfully");
+      res.json({
+        success: true,
+        data: summRes.data,
       });
     } catch (error) {
       console.error("❌ Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 );
@@ -270,7 +210,7 @@ router.get(
   "/export/csv",
   authenticateToken,
   authorizeRole("admin"),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { startDate, endDate, location_id } = req.query;
 
@@ -278,20 +218,16 @@ router.get(
 
       let exportQuery = `
       SELECT 
-        r.id as 'Transaction ID',
-        u.full_name as 'User Name',
-        v.license_plate as 'Vehicle Plate',
-        pl.name as 'Location',
-        r.start_time as 'Check In',
-        r.end_time as 'Check Out',
-        CEIL((TIMESTAMPDIFF(MINUTE, r.start_time, r.end_time) / 60)) as 'Duration (Hours)',
-        r.total_amount as 'Total Fee',
-        p.payment_status as 'Payment Status',
-        r.created_at as 'Created At'
+        r.id as transaction_id,
+        u.full_name as user_name,
+        pl.name as location_name,
+        r.start_time as check_in,
+        r.end_time as check_out,
+        r.total_amount as fee,
+        r.status,
+        r.created_at
       FROM reservations r
-      LEFT JOIN vehicles v ON r.vehicle_id = v.id
       LEFT JOIN parking_locations pl ON r.location_id = pl.id
-      LEFT JOIN payments p ON r.id = p.reservation_id
       LEFT JOIN users u ON r.user_id = u.id
       WHERE 1=1
     `;
@@ -315,51 +251,44 @@ router.get(
 
       exportQuery += ` ORDER BY r.created_at DESC`;
 
-      db.query(exportQuery, params, (err, results) => {
-        if (err) {
-          console.error("❌ Query error:", err);
-          return res
-            .status(500)
-            .json({ error: "Failed to export transactions" });
-        }
+      const exportRes = await db.query(exportQuery, params);
+      
+      if (!exportRes.success || exportRes.data.length === 0) {
+        return res.status(404).json({ success: false, error: "No transactions to export" });
+      }
 
-        if (results.length === 0) {
-          return res.status(404).json({ error: "No transactions to export" });
-        }
+      // Convert to CSV
+      const headers = Object.keys(exportRes.data[0]);
+      const csv = [headers.join(",")];
 
-        // Convert to CSV
-        const headers = Object.keys(results[0]);
-        const csv = [headers.join(",")];
-
-        results.forEach((row) => {
-          const values = headers.map((header) => {
-            const value = row[header];
-            // Escape quotes and wrap in quotes if needed
-            if (
-              typeof value === "string" &&
-              (value.includes(",") || value.includes('"'))
-            ) {
-              return `"${value.replace(/"/g, '""')}"`;
-            }
-            return value || "";
-          });
-          csv.push(values.join(","));
+      exportRes.data.forEach((row) => {
+        const values = headers.map((header) => {
+          const value = row[header];
+          // Escape quotes and wrap in quotes if needed
+          if (
+            typeof value === "string" &&
+            (value.includes(",") || value.includes('"'))
+          ) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value || "";
         });
-
-        res.setHeader("Content-Type", "text/csv");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename=transactions-${
-            new Date().toISOString().split("T")[0]
-          }.csv`
-        );
-
-        console.log("✅ CSV exported successfully");
-        res.send(csv.join("\n"));
+        csv.push(values.join(","));
       });
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=transactions-${
+          new Date().toISOString().split("T")[0]
+        }.csv`
+      );
+
+      console.log("✅ CSV exported successfully");
+      res.send(csv.join("\n"));
     } catch (error) {
       console.error("❌ Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 );

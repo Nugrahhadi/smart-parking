@@ -8,7 +8,7 @@ const db = require("../../config/database");
  * GET /api/admin/users
  * Fetch all users with pagination and filtering
  */
-router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.get("/", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const { page = 1, limit = 10, role, search } = req.query;
     const offset = (page - 1) * limit;
@@ -17,19 +17,15 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
 
     let usersQuery = `
       SELECT 
-        u.id,
-        u.username,
-        u.email,
-        u.full_name,
-        u.phone_number,
-        u.role,
-        u.created_at,
-        u.updated_at,
-        COUNT(DISTINCT v.id) as vehicles_count,
-        COUNT(DISTINCT r.id) as reservations_count
-      FROM users u
-      LEFT JOIN vehicles v ON u.id = v.user_id
-      LEFT JOIN reservations r ON u.id = r.user_id
+        id,
+        username,
+        email,
+        full_name,
+        phone_number,
+        role,
+        created_at,
+        updated_at
+      FROM users
       WHERE 1=1
     `;
 
@@ -37,67 +33,47 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
 
     // Add role filter
     if (role) {
-      usersQuery += ` AND u.role = ?`;
+      usersQuery += ` AND role = ?`;
       params.push(role);
     }
 
     // Add search filter
     if (search) {
-      usersQuery += ` AND (u.email LIKE ? OR u.full_name LIKE ? OR u.phone_number LIKE ?)`;
+      usersQuery += ` AND (email LIKE ? OR full_name LIKE ? OR phone_number LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    usersQuery += ` GROUP BY u.id
-      ORDER BY u.created_at DESC
-      LIMIT ? OFFSET ?`;
-
+    usersQuery += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), offset);
 
-    db.query(usersQuery, params, (err, results) => {
-      if (err) {
-        console.error("❌ Query error:", err);
-        return res.status(500).json({ error: "Failed to fetch users" });
-      }
+    const [usersRes, countRes] = await Promise.all([
+      db.query(usersQuery, params),
+      db.query("SELECT COUNT(*) as total FROM users WHERE 1=1" + (role ? " AND role = ?" : "") + (search ? " AND (email LIKE ? OR full_name LIKE ? OR phone_number LIKE ?)" : ""), 
+        role ? [role, ...(search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [])] : (search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [])
+      ),
+    ]);
 
-      // Get total count
-      let countQuery = `SELECT COUNT(*) as total FROM users WHERE 1=1`;
-      let countParams = [];
+    if (!usersRes.success || !countRes.success) {
+      throw new Error("Failed to fetch users");
+    }
 
-      if (role) {
-        countQuery += ` AND role = ?`;
-        countParams.push(role);
-      }
+    const total = countRes.data[0]?.total || 0;
+    const totalPages = Math.ceil(total / limit);
 
-      if (search) {
-        countQuery += ` AND (email LIKE ? OR full_name LIKE ? OR phone_number LIKE ?)`;
-        countParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-      }
-
-      db.query(countQuery, countParams, (err, countResults) => {
-        if (err) {
-          console.error("❌ Count error:", err);
-          return res.status(500).json({ error: "Failed to count users" });
-        }
-
-        const total = countResults[0].total;
-        const totalPages = Math.ceil(total / limit);
-
-        console.log("✅ Fetched", results.length, "users");
-        res.json({
-          success: true,
-          data: results,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total,
-            totalPages,
-          },
-        });
-      });
+    console.log("✅ Fetched", usersRes.data.length, "users");
+    res.json({
+      success: true,
+      data: usersRes.data,
+      pagination: {
+        current_page: parseInt(page),
+        per_page: parseInt(limit),
+        total_pages: totalPages,
+        total: total,
+      },
     });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -105,46 +81,39 @@ router.get("/", authenticateToken, authorizeRole("admin"), (req, res) => {
  * GET /api/admin/users/:id
  * Fetch single user details
  */
-router.get("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.get("/:id", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`👥 Fetching user ${id}...`);
 
     const userQuery = `
       SELECT 
-        u.*,
-        COUNT(DISTINCT v.id) as vehicles_count,
-        COUNT(DISTINCT r.id) as reservations_count
-      FROM users u
-      LEFT JOIN vehicles v ON u.id = v.user_id
-      LEFT JOIN reservations r ON u.id = r.user_id
-      WHERE u.id = ?
-      GROUP BY u.id
+        id,
+        username,
+        email,
+        full_name,
+        phone_number,
+        role,
+        created_at,
+        updated_at
+      FROM users
+      WHERE id = ?
     `;
 
-    db.query(userQuery, [id], (err, results) => {
-      if (err) {
-        console.error("❌ Query error:", err);
-        return res.status(500).json({ error: "Failed to fetch user" });
-      }
+    const userRes = await db.queryOne(userQuery, [id]);
 
-      if (results.length === 0) {
-        return res.status(404).json({ error: "User not found" });
-      }
+    if (!userRes.success || !userRes.data) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
 
-      // Remove password from response
-      const user = results[0];
-      delete user.password;
-
-      console.log("✅ User fetched successfully");
-      res.json({
-        success: true,
-        data: user,
-      });
+    console.log("✅ User fetched successfully");
+    res.json({
+      success: true,
+      data: userRes.data,
     });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -152,7 +121,7 @@ router.get("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
  * POST /api/admin/users
  * Create new user (admin function)
  */
-router.post("/", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.post("/", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const { email, password, full_name, phone_number, role } = req.body;
 
@@ -162,12 +131,12 @@ router.post("/", authenticateToken, authorizeRole("admin"), (req, res) => {
     if (!email || !password || !full_name) {
       return res
         .status(400)
-        .json({ error: "Email, password, and full name are required" });
+        .json({ success: false, error: "Email, password, and full name are required" });
     }
 
     const validRoles = ["user", "staff", "admin"];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: "Invalid role" });
+      return res.status(400).json({ success: false, error: "Invalid role" });
     }
 
     // Hash password
@@ -180,29 +149,27 @@ router.post("/", authenticateToken, authorizeRole("admin"), (req, res) => {
 
     const username = email.split("@")[0]; // Generate username from email
 
-    db.query(
+    const result = await db.query(
       createQuery,
-      [email, hashedPassword, username, full_name, phone_number || null, role],
-      (err, result) => {
-        if (err) {
-          console.error("❌ Insert error:", err);
-          if (err.code === "ER_DUP_ENTRY") {
-            return res.status(400).json({ error: "Email already exists" });
-          }
-          return res.status(500).json({ error: "Failed to create user" });
-        }
-
-        console.log("✅ User created with ID:", result.insertId);
-        res.status(201).json({
-          success: true,
-          message: "User created successfully",
-          data: { id: result.insertId },
-        });
-      }
+      [email, hashedPassword, username, full_name, phone_number || null, role]
     );
+
+    if (!result.success) {
+      throw new Error("Failed to create user");
+    }
+
+    console.log("✅ User created with ID:", result.insertId);
+    res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      data: { id: result.insertId },
+    });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    if (error.message && error.message.includes("DUP_ENTRY")) {
+      return res.status(400).json({ success: false, error: "Email already exists" });
+    }
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -210,7 +177,7 @@ router.post("/", authenticateToken, authorizeRole("admin"), (req, res) => {
  * PUT /api/admin/users/:id
  * Update user information
  */
-router.put("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.put("/:id", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     const { email, full_name, phone_number, role, password } = req.body;
@@ -220,12 +187,12 @@ router.put("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
     if (!email || !full_name) {
       return res
         .status(400)
-        .json({ error: "Email and full name are required" });
+        .json({ success: false, error: "Email and full name are required" });
     }
 
     const validRoles = ["user", "staff", "admin"];
     if (role && !validRoles.includes(role)) {
-      return res.status(400).json({ error: "Invalid role" });
+      return res.status(400).json({ success: false, error: "Invalid role" });
     }
 
     let updateQuery = `
@@ -247,28 +214,27 @@ router.put("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
     updateQuery += ` WHERE id = ?`;
     params.push(id);
 
-    db.query(updateQuery, params, (err, result) => {
-      if (err) {
-        console.error("❌ Update error:", err);
-        if (err.code === "ER_DUP_ENTRY") {
-          return res.status(400).json({ error: "Email already exists" });
-        }
-        return res.status(500).json({ error: "Failed to update user" });
-      }
+    const result = await db.query(updateQuery, params);
 
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ error: "User not found" });
-      }
+    if (!result.success) {
+      throw new Error("Failed to update user");
+    }
 
-      console.log("✅ User updated successfully");
-      res.json({
-        success: true,
-        message: "User updated successfully",
-      });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    console.log("✅ User updated successfully");
+    res.json({
+      success: true,
+      message: "User updated successfully",
     });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    if (error.message && error.message.includes("DUP_ENTRY")) {
+      return res.status(400).json({ success: false, error: "Email already exists" });
+    }
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -276,52 +242,44 @@ router.put("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
  * DELETE /api/admin/users/:id
  * Delete user
  */
-router.delete("/:id", authenticateToken, authorizeRole("admin"), (req, res) => {
+router.delete("/:id", authenticateToken, authorizeRole("admin"), async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`👥 Deleting user ${id}...`);
 
-    // Prevent deleting admin users
+    // Check if user exists and is not admin
     const checkQuery = `SELECT role FROM users WHERE id = ?`;
+    const checkRes = await db.queryOne(checkQuery, [id]);
 
-    db.query(checkQuery, [id], (err, results) => {
-      if (err) {
-        console.error("❌ Check error:", err);
-        return res.status(500).json({ error: "Failed to check user" });
-      }
+    if (!checkRes.success || !checkRes.data) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
 
-      if (results.length === 0) {
-        return res.status(404).json({ error: "User not found" });
-      }
+    if (checkRes.data.role === "admin") {
+      return res.status(400).json({ success: false, error: "Cannot delete admin users" });
+    }
 
-      if (results[0].role === "admin") {
-        return res.status(400).json({ error: "Cannot delete admin users" });
-      }
+    const deleteQuery = `DELETE FROM users WHERE id = ? AND role != 'admin'`;
+    const result = await db.query(deleteQuery, [id]);
 
-      const deleteQuery = `DELETE FROM users WHERE id = ? AND role != 'admin'`;
+    if (!result.success) {
+      throw new Error("Failed to delete user");
+    }
 
-      db.query(deleteQuery, [id], (err, result) => {
-        if (err) {
-          console.error("❌ Delete error:", err);
-          return res.status(500).json({ error: "Failed to delete user" });
-        }
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ success: false, error: "User not found or cannot be deleted" });
+    }
 
-        if (result.affectedRows === 0) {
-          return res
-            .status(404)
-            .json({ error: "User not found or cannot be deleted" });
-        }
-
-        console.log("✅ User deleted successfully");
-        res.json({
-          success: true,
-          message: "User deleted successfully",
-        });
-      });
+    console.log("✅ User deleted successfully");
+    res.json({
+      success: true,
+      message: "User deleted successfully",
     });
   } catch (error) {
     console.error("❌ Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -16,6 +16,7 @@ import AdminSystemConfig from "./admin/AdminSystemConfig";
 import AdminReports from "./admin/AdminReports";
 import ParkingLocation from "./admin/ParkingLocation";
 import TransactionsScreen from "./admin/TransactionsScreen";
+import SensorMonitoringScreen from "./admin/SensorMonitoringScreen";
 import ProfileTab from "./mobile/ProfileTab";
 import PaymentTab from "./mobile/PaymentTab";
 import ReservationTab from "./mobile/ReservationTab";
@@ -188,6 +189,14 @@ function App() {
             element={
               <AdminRoute>
                 <TransactionsScreen />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/sensors/"
+            element={
+              <AdminRoute>
+                <SensorMonitoringScreen />
               </AdminRoute>
             }
           />
